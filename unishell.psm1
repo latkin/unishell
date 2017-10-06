@@ -97,8 +97,32 @@ $bidiCategoryMappings = @{
     'WS'  = 'WS - Whitespace'
     'ON'  = 'ON - Other Neutrals'
 }
+
+function plane($code) {
+    if($code -lt 0) { Write-Error "Invalid codepoint" }
+    elseif($code -le 0xFFFF){ 'Basic Multilingual Plane' }
+    elseif($code -le 0x1FFFF) { 'Supplementary Multilingual Plane'}
+    elseif($code -le 0x2FFFF) { 'Supplementary Ideographic Plane' }
+    elseif($code -le 0x3FFFF) { 'Tertiary Ideographic Plane' }
+    elseif($code -le 0x4FFFF) { 'Plane 5 (unassigned)' }
+    elseif($code -le 0x5FFFF) { 'Plane 6 (unassigned)' }
+    elseif($code -le 0x6FFFF) { 'Plane 7 (unassigned)' }
+    elseif($code -le 0x7FFFF) { 'Plane 8 (unassigned)' }
+    elseif($code -le 0x8FFFF) { 'Plane 9 (unassigned)' }
+    elseif($code -le 0x9FFFF) { 'Plane 10 (unassigned)' }
+    elseif($code -le 0xAFFFF) { 'Plane 11 (unassigned)' }
+    elseif($code -le 0xBFFFF) { 'Plane 12 (unassigned)' }
+    elseif($code -le 0xCFFFF) { 'Plane 13 (unassigned)' }
+    elseif ($code -le 0xDFFFF) { 'Plane 14 (unassigned)' }
+    elseif ($code -le 0xEFFFF) { 'Supplementary Special-purpose Plane' }
+    elseif ($code -le 0xFFFFF) { 'Supplementary Private Use Area - A' }
+    elseif ($code -le 0x10FFFF) { 'Supplementary Private Use Area - B'}
+    else { Write-Error "Invalid codepoint" }
+}
 function loadCharData {
     Write-Progress -Activity 'Loading unicode data file'
+
+    # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
     $script:charData = Get-Content $script:unicodeDataPath | % {
         $line = $_
         $fields = $line.Split(';')
@@ -127,6 +151,7 @@ function loadCharData {
             DigitValue                = $fields[7]
             NumericValue              = $fields[8]
             Mirrored                  = ($fields[9] -eq 'Y')
+            Plane                     = plane $code
             #     Comment              = $fields[11]
             UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
             LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }

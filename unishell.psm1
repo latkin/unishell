@@ -1,5 +1,6 @@
 param(
-    $UnicodeDataPath
+    $UnicodeDataPath,
+    $CodepointDisplayFields = @('Value','Codepoint','Name','ASCII','ISO88591','UTF8','UTF16')
 )
 
 $scriptDir = Split-Path $psCommandPath
@@ -118,6 +119,36 @@ function plane($code) {
     else { Write-Error "Invalid codepoint" }
 }
 
+$defaultDisplayFields = @{
+    codepoint = $CodepointDisplayFields
+}
+
+function updateFormatting {
+    $content = $(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<Configuration><ViewDefinitions>'
+        $defaultDisplayFields.Keys |%{
+            "<View>"
+            "<Name>$_</Name><ViewSelectedBy><TypeName>unishell.$_</TypeName></ViewSelectedBy>"
+            "<TableControl><TableHeaders>"
+            $defaultDisplayFields[$_] |%{ "<TableColumnHeader><Label>$_</Label></TableColumnHeader>" }
+            "</TableHeaders><TableRowEntries><TableRowEntry><TableColumnItems>"
+            $defaultDisplayFields[$_] |%{ "<TableColumnItem><PropertyName>$_</PropertyName></TableColumnItem>" }
+            "</TableColumnItems></TableRowEntry></TableRowEntries></TableControl>"
+            "</View>"
+        }
+        '</ViewDefinitions></Configuration>'
+    )
+
+    $path = Join-Path $scriptDir 'unishell.format.ps1xml'
+    $content | Out-File $path -Encoding ascii
+
+    Update-FormatData -AppendPath $path
+    Update-FormatData
+}
+
+updateFormatting
+
 $stubData = @{}
 $charData = @{}
 function loadStub {
@@ -134,11 +165,12 @@ function loadStub {
     }
 }
 
-function getChar {
-    param(
-        $codepointName
-    )
+function addCharData($data) {
+    $data.pstypenames.Add('unishell.codepoint')
+    $script:charData[$data.Codepoint] = $data
+}
 
+function getChar($codepointName) {
     if (-not $script:charData.ContainsKey($codepointName)) {
         $stubString = $script:stubData[$codepointName]
         if ($stubString) {
@@ -159,7 +191,7 @@ function getChar {
                 $name = "$name $($fields[10])"
             }
 
-            $script:charData[$codepointName] = [pscustomobject]@{
+            addCharData ([pscustomobject]@{
                 Value                     = $value
                 Codepoint                 = $codepointName
                 Name                      = $name
@@ -180,13 +212,13 @@ function getChar {
                 ISO88591                  = [byte[]]@(if ($value) { [System.Text.Encoding]::GetEncoding(28591).GetBytes($value) } else { $null })
                 UTF8                      = [byte[]]@(if ($value) { [System.Text.Encoding]::UTF8.GetBytes($value) } else { $null })
                 UTF16                     = [byte[]]@(if ($value) { [System.Text.Encoding]::Unicode.GetBytes($value) } else { $null })
-            }
+            })
 
             $script:stubData.Remove($codepointName)
         }
         else {
             $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
-            $script:charData[$codepointName] = [pscustomobject]@{
+            addCharData ([pscustomobject]@{
                 Value                     = $null
                 Codepoint                 = $codepointName
                 Name                      = 'Unknown'
@@ -207,7 +239,7 @@ function getChar {
                 ISO88591                  = $null
                 UTF8                      = $null
                 UTF16                     = $null
-            }
+            })
         }
     }
 

@@ -189,7 +189,6 @@ function loadStub {
     }
 
     $null = $sb.AppendLine("else { `$null } }")
-    $sb.ToString() | Write-Host
     $script:rangeBlock = Invoke-Expression $sb.ToString()
 
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:derivedAgePath).Path, [System.Text.Encoding]::UTF8)
@@ -332,4 +331,18 @@ function Expand-UniString {
     }
 }
 
-Export-ModuleMember -Function 'Expand-UniString'
+function Get-UniCodepoint {
+    param(
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [ValidateScript({$_ -match '^(U\+)?[A-F0-9]{4,6}'})]
+        [string] $Codepoint
+    )
+
+    loadStub
+
+    if ($Codepoint -match '^(U\+)?([A-F0-9]{4,6})') {
+        getChar "U+$($matches[2])"
+    }
+}
+
+Export-ModuleMember -Function 'Expand-UniString','Get-UniCodepoint'

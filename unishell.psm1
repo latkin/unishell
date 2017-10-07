@@ -253,7 +253,7 @@ function getEncodings($str) {
     foreach ($enc in $allEncodings) {
         $name = $enc.WebName
         if (-not $props.ContainsKey($name)) {
-            $bytes = if ($str -eq $null) { @() } else { $enc.GetBytes($str) }
+            $bytes = if ($str -eq $null) { ,@() } else { $enc.GetBytes($str) }
             $props.Add($name, [byte[]]$bytes)
         }
     }
@@ -299,7 +299,7 @@ function getChar($codepointName) {
 
             addCharData ([pscustomobject]@{
                     Value                     = $value
-                    Codepoint                 = $codepointName
+                    Codepoint                 = $codepointName.ToUpper()
                     Name                      = $name
                     Category                  = $generalCategoryMappings[$fields[2]]
                     UnicodeVersion            = (getAge $code)
@@ -326,8 +326,8 @@ function getChar($codepointName) {
 
             addCharData ([pscustomobject]@{
                     Value                     = $null
-                    Codepoint                 = $codepointName
-                    Name                      = 'Unknown'
+                    Codepoint                 = $codepointName.ToUpper()
+                    Name                      = 'Unassigned'
                     Category                  = $null
                     UnicodeVersion            = (getAge $code)
                     CanonicalCombiningClasses = $null

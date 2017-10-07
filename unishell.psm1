@@ -281,17 +281,16 @@ function getEncodings($str) {
 function getChar($codepointName) {
     if (-not $script:charData.ContainsKey($codepointName)) {
         $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
+        $value = if (($code -lt 55296) -or ($code -gt 57343)) {
+            [char]::convertfromutf32($code)
+        }
+        else {
+            $null
+        }
         $fields = $script:stubData[$codepointName]
 
         if ($fields) {
             # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
-            $value = if (($code -lt 55296) -or ($code -gt 57343)) {
-                [char]::convertfromutf32($code)
-            }
-            else {
-                $null
-            }
-
             $name = $fields[1]
             if ($fields[10] -and ($fields[1] -like '<*>')) {
                 $name = "$name $($fields[10])"
@@ -325,11 +324,11 @@ function getChar($codepointName) {
             }
 
             addCharData ([pscustomobject]@{
-                    Value                     = $null
+                    Value                     = $value
                     Codepoint                 = $codepointName.ToUpper()
                     Name                      = 'Unassigned'
                     Category                  = $null
-                    UnicodeVersion            = (getAge $code)
+                    UnicodeVersion            = $null
                     CanonicalCombiningClasses = $null
                     BidiCategory              = $null
                     DecompositionMapping      = $null

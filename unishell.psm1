@@ -2,7 +2,8 @@ param(
     $UnicodeDataPath,
     $DerivedAgePath,
     $CodepointDisplayFields = @('Codepoint', 'Name'),
-    $DefaultDisplayEncodings = @('us-ascii','utf-8','utf-16')
+    $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16'),
+    $ShowValue = $true
 )
 
 $scriptDir = Split-Path $psCommandPath
@@ -22,6 +23,9 @@ if (-not (Test-Path $DerivedAgePath)) {
     Write-Error "Cannot find derived ages file at $derivedAgePath"
     exit
 }
+
+$allEncodings = [System.Text.Encoding]::GetEncodings().GetEncoding()
+$maxDefaultDisplayEncodingLength = ($DefaultDisplayEncodings | % Length | Measure-Object -Maximum).Maximum
 
 $generalCategoryMappings = @{
     'Lu' = 'Lu - Letter, Uppercase'
@@ -137,11 +141,28 @@ function updateFormatting {
         "<Name>codepoint</Name><ViewSelectedBy><TypeName>unishell.codepoint</TypeName></ViewSelectedBy>"
         "<TableControl><TableHeaders>"
         $CodepointDisplayFields | % { "<TableColumnHeader><Label>$_</Label></TableColumnHeader>" }
-        $DefaultDisplayEncodings |% { "<TableColumnHeader><Label>$_</Label><Alignment>Right</Alignment></TableColumnHeader>"}
+        $DefaultDisplayEncodings | % { "<TableColumnHeader><Label>$_</Label><Alignment>Right</Alignment></TableColumnHeader>" }
+        if ($showValue) {
+            "<TableColumnHeader><Label>Value</Label><Alignment>Center</Alignment></TableColumnHeader>"
+        }
         "</TableHeaders><TableRowEntries><TableRowEntry><TableColumnItems>"
         $CodepointDisplayFields | % { "<TableColumnItem><PropertyName>$_</PropertyName></TableColumnItem>" }
         $DefaultDisplayEncodings | % { "<TableColumnItem><Alignment>Right</Alignment><ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock></TableColumnItem>" }
+        if ($showValue) {
+            "<TableColumnItem><PropertyName>Value</PropertyName></TableColumnItem>"
+        }
         "</TableColumnItems></TableRowEntry></TableRowEntries></TableControl>"
+        "</View>"
+        "<View>"
+        "<Name>encodings</Name><ViewSelectedBy><TypeName>unishell.encodings</TypeName></ViewSelectedBy>"
+        "<ListControl><ListEntries><ListEntry><ListItems>"
+        $allEncodings | % {
+            "<ListItem>"
+            "<Label>$($_.webname)</Label>"
+            "<ScriptBlock>(`$_.'$($_.webname)' |%{ `$_.ToString('X2') }) -join ' '</ScriptBlock>"
+            "</ListItem>"
+        }
+        "</ListItems></ListEntry></ListEntries></ListControl>"
         "</View>"
         '</ViewDefinitions></Configuration>'
     )
@@ -229,17 +250,31 @@ function getAge($code) {
 
 function getEncodings($str) {
     $props = @{}
-    foreach ($encInfo in [System.Text.Encoding]::GetEncodings()) {
-        $enc = $encInfo.GetEncoding()
+    foreach ($enc in $allEncodings) {
         $name = $enc.WebName
         if (-not $props.ContainsKey($name)) {
-            $bytes = if ($str -eq $null) { $null } else { $enc.GetBytes($str) }
+            $bytes = if ($str -eq $null) { @() } else { $enc.GetBytes($str) }
             $props.Add($name, [byte[]]$bytes)
         }
     }
 
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($defaultEnc in $DefaultDisplayEncodings) {
+        $null = $sb.Append($defaultEnc.PadRight($maxDefaultDisplayEncodingLength))
+        $null = $sb.Append(' : ')
+        $null = $sb.AppendLine((($props[$defaultEnc] | % { $_.ToString('X2') }) -join ' '))
+    }
+    if ($DefaultDisplayEncodings.Count -lt $allEncodings.Count) {
+        $null = $sb.AppendLine('...')
+    }
+    $null = $sb.Remove($sb.Length - 1, 1)
+    $toString = $sb.ToString()
+
     $result = [pscustomobject]$props
     $result.pstypenames.Add('unishell.encodings')
+    $result | Add-Member -MemberType ScriptMethod -Name 'ToString' -Force -Value {
+        $toString
+    }.GetNewClosure()
     $result
 }
 

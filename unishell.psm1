@@ -157,6 +157,7 @@ updateFormatting
 
 $stubData = @{}
 $charData = @{}
+$rangeBlock = $null
 $ageBlock = $null
 
 function loadStub {
@@ -166,11 +167,30 @@ function loadStub {
     }
 
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:unicodeDataPath).Path, [System.Text.Encoding]::UTF8)
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $clause = 'if'
     foreach ($line in $lines) {
-        $i = $line.IndexOf(';')
-        $codepointName = 'U+' + $line.SubString(0, $i)
-        $script:stubData[$codepointName] = $line
+        $fields = $line.Split(';')
+        $f0 = $fields[0]
+        $codepointName = 'U+' + $f0
+
+        if ($fields[1] -match '^\<(?<rangeName>[a-zA-Z0-9 ]+?), (?<marker>First|Last)>$') {
+            $fields[1] = $matches['rangeName']
+            if ($matches['marker'] -eq 'First') {
+                $null = $sb.Append("$clause((`$code -ge 0x$f0) -and ")
+                $clause = 'elseif'
+            }
+            else {
+                $null = $sb.AppendLine("(`$code -le 0x$f0)){ '$codepointName' }")
+            }
+        }
+        $script:stubData[$codepointName] = $fields
     }
+
+    $null = $sb.AppendLine("else { `$null } }")
+    $sb.ToString() | Write-Host
+    $script:rangeBlock = Invoke-Expression $sb.ToString()
 
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:derivedAgePath).Path, [System.Text.Encoding]::UTF8)
     $sb = [System.Text.StringBuilder]::new()
@@ -190,14 +210,18 @@ function loadStub {
             $clause = 'elseif'
         }
     }
-    $null = $sb.AppendLine("else { 'Unassigned' } }")
 
+    $null = $sb.AppendLine("else { 'Unassigned' } }")
     $script:ageBlock = Invoke-Expression $sb.ToString()
 }
 
 function addCharData($data) {
     $data.pstypenames.Add('unishell.codepoint')
     $script:charData[$data.Codepoint] = $data
+}
+
+function getRange($code) {
+    & $script:rangeBlock $code
 }
 
 function getAge($code) {
@@ -222,13 +246,11 @@ function getEncodings($str) {
 
 function getChar($codepointName) {
     if (-not $script:charData.ContainsKey($codepointName)) {
-        $stubString = $script:stubData[$codepointName]
-        if ($stubString) {
+        $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
+        $fields = $script:stubData[$codepointName]
+
+        if ($fields) {
             # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
-            $fields = $stubString.Split(';')
-
-            $code = [Convert]::ToInt32($fields[0], 16)
-
             $value = if (($code -lt 55296) -or ($code -gt 57343)) {
                 [char]::convertfromutf32($code)
             }
@@ -260,11 +282,14 @@ function getChar($codepointName) {
                     TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
                     Encodings                 = (getEncodings $value)
                 })
-
-            $script:stubData.Remove($codepointName)
         }
         else {
-            $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
+            $rangeCodepointName = getRange $code
+            if ($rangeCodepointName) {
+                $script:stubData[$codepointName] = $script:stubData[$rangeCodepointName]
+                return (getChar $codepointName)
+            }
+
             addCharData ([pscustomobject]@{
                     Value                     = $null
                     Codepoint                 = $codepointName

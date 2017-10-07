@@ -12,8 +12,6 @@ if (-not (Test-Path $UnicodeDataPath)) {
     exit
 } 
 
-$charData = $null
-
 $generalCategoryMappings = @{
     'Lu' = 'Lu - Letter, Uppercase'
     'Ll' = 'Ll - Letter, Lowercase'
@@ -119,64 +117,101 @@ function plane($code) {
     elseif ($code -le 0x10FFFF) { 'Supplementary Private Use Area - B'}
     else { Write-Error "Invalid codepoint" }
 }
-function loadCharData {
-    Write-Progress -Activity 'Loading unicode data file'
 
-    # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
-    $script:charData = @{}
-
-    Get-Content $script:unicodeDataPath | % {
-        $line = $_
-        $fields = $line.Split(';')
-
-        $code = [Convert]::ToInt32($fields[0], 16)
-
-        $value = if (($code -lt 55296) -or ($code -gt 57343)) {
-            [char]::convertfromutf32($code)
-        } else {
-            $null
-        }
-
-        $name = $fields[1]
-        if ($fields[10]) {
-            $name = "$name $($fields[10])"
-        }
-
-        $codepointName = "U+" + $fields[0]
-
-        $script:charData[$codepointName] = [pscustomobject]@{
-            Value                     = $value
-            Codepoint                 = $codepointName
-            Name                      = $name
-            Category                  = $generalCategoryMappings[$fields[2]]
-            CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
-            BidiCategory              = $bidiCategoryMappings[$fields[4]]
-            DecompositionMapping      = $fields[5]
-            DecimalDigitValue         = if ($fields[6]) { [int] $fields[6] } else {$null}
-            DigitValue                = $fields[7]
-            NumericValue              = $fields[8]
-            Mirrored                  = ($fields[9] -eq 'Y')
-            Plane                     = plane $code
-            #     Comment              = $fields[11]
-            UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
-            LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
-            TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
-
-            ASCII                     = [byte[]]@(if ($value) { [System.Text.Encoding]::ASCII.GetBytes($value) } else { $null })
-            ISO88591                  = [byte[]]@(if ($value) { [System.Text.Encoding]::GetEncoding(28591).GetBytes($value) } else { $null })
-            UTF8                      = [byte[]]@(if ($value) { [System.Text.Encoding]::UTF8.GetBytes($value) } else { $null })
-            UTF16                     = [byte[]]@(if ($value) { [System.Text.Encoding]::Unicode.GetBytes($value) } else { $null })
-        }
+$stubData = @{}
+$charData = @{}
+function loadStub {
+    # bail if already initialized
+    if ($script:stubData.Count -ne 0) {
+        return
     }
-    Write-Progress -Activity 'Loading unicode data file' -Completed
+
+    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:unicodeDataPath).Path, [System.Text.Encoding]::UTF8)
+    foreach ($line in $lines) {
+        $i = $line.IndexOf(';')
+        $codepointName = 'U+' + $line.SubString(0, $i)
+        $script:stubData[$codepointName] = $line
+    }
 }
 
-function Get-CharData {
-    if (!$script:charData) {
-        loadCharData
+function getChar {
+    param(
+        $codepointName
+    )
+
+    if (-not $script:charData.ContainsKey($codepointName)) {
+        $stubString = $script:stubData[$codepointName]
+        if ($stubString) {
+            # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
+            $fields = $stubString.Split(';')
+
+            $code = [Convert]::ToInt32($fields[0], 16)
+
+            $value = if (($code -lt 55296) -or ($code -gt 57343)) {
+                [char]::convertfromutf32($code)
+            }
+            else {
+                $null
+            }
+
+            $name = $fields[1]
+            if ($fields[10]) {
+                $name = "$name $($fields[10])"
+            }
+
+            $script:charData[$codepointName] = [pscustomobject]@{
+                Value                     = $value
+                Codepoint                 = $codepointName
+                Name                      = $name
+                Category                  = $generalCategoryMappings[$fields[2]]
+                CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
+                BidiCategory              = $bidiCategoryMappings[$fields[4]]
+                DecompositionMapping      = $fields[5]
+                DecimalDigitValue         = if ($fields[6]) { [int] $fields[6] } else {$null}
+                DigitValue                = $fields[7]
+                NumericValue              = $fields[8]
+                Mirrored                  = ($fields[9] -eq 'Y')
+                Plane                     = plane $code
+                UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
+                LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
+                TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
+
+                ASCII                     = [byte[]]@(if ($value) { [System.Text.Encoding]::ASCII.GetBytes($value) } else { $null })
+                ISO88591                  = [byte[]]@(if ($value) { [System.Text.Encoding]::GetEncoding(28591).GetBytes($value) } else { $null })
+                UTF8                      = [byte[]]@(if ($value) { [System.Text.Encoding]::UTF8.GetBytes($value) } else { $null })
+                UTF16                     = [byte[]]@(if ($value) { [System.Text.Encoding]::Unicode.GetBytes($value) } else { $null })
+            }
+
+            $script:stubData.Remove($codepointName)
+        }
+        else {
+            $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
+            $script:charData[$codepointName] = [pscustomobject]@{
+                Value                     = $null
+                Codepoint                 = $codepointName
+                Name                      = 'Unknown'
+                Category                  = $null
+                CanonicalCombiningClasses = $null
+                BidiCategory              = $null
+                DecompositionMapping      = $null
+                DecimalDigitValue         = $null
+                DigitValue                = $null
+                NumericValue              = $null
+                Mirrored                  = $false
+                Plane                     = plane $code
+                UppercaseMapping          = $null
+                LowercaseMapping          = $null
+                TitlecaseMapping          = $null
+
+                ASCII                     = $null
+                ISO88591                  = $null
+                UTF8                      = $null
+                UTF16                     = $null
+            }
+        }
     }
 
-    $script:charData
+    $script:charData[$codepointName]
 }
 
 function Expand-UniString {
@@ -194,12 +229,10 @@ function Expand-UniString {
         }
     )
 
-    if (!$script:charData) {
-        loadCharData
-    }
+    loadStub
 
     $codepoints | % {
-        $script:charData["U+$($_.ToString('X4'))"]
+        getChar "U+$($_.ToString('X4'))"
     }
 }
 

@@ -1,7 +1,8 @@
 param(
     $UnicodeDataPath,
     $DerivedAgePath,
-    $CodepointDisplayFields = @('Codepoint','Name','ASCII','ISO88591','UTF8','UTF16','Value')
+    $CodepointDisplayFields = @('Codepoint', 'Name'),
+    $DefaultDisplayEncodings = @('us-ascii','utf-8','utf-16')
 )
 
 $scriptDir = Split-Path $psCommandPath
@@ -128,24 +129,20 @@ function plane($code) {
     else { Write-Error "Invalid codepoint" }
 }
 
-$defaultDisplayFields = @{
-    codepoint = $CodepointDisplayFields
-}
-
 function updateFormatting {
     $content = $(
         '<?xml version="1.0" encoding="utf-8"?>'
         '<Configuration><ViewDefinitions>'
-        $defaultDisplayFields.Keys |%{
-            "<View>"
-            "<Name>$_</Name><ViewSelectedBy><TypeName>unishell.$_</TypeName></ViewSelectedBy>"
-            "<TableControl><TableHeaders>"
-            $defaultDisplayFields[$_] |%{ "<TableColumnHeader><Label>$_</Label></TableColumnHeader>" }
-            "</TableHeaders><TableRowEntries><TableRowEntry><TableColumnItems>"
-            $defaultDisplayFields[$_] |%{ "<TableColumnItem><PropertyName>$_</PropertyName></TableColumnItem>" }
-            "</TableColumnItems></TableRowEntry></TableRowEntries></TableControl>"
-            "</View>"
-        }
+        "<View>"
+        "<Name>codepoint</Name><ViewSelectedBy><TypeName>unishell.codepoint</TypeName></ViewSelectedBy>"
+        "<TableControl><TableHeaders>"
+        $CodepointDisplayFields | % { "<TableColumnHeader><Label>$_</Label></TableColumnHeader>" }
+        $DefaultDisplayEncodings |% { "<TableColumnHeader><Label>$_</Label><Alignment>Right</Alignment></TableColumnHeader>"}
+        "</TableHeaders><TableRowEntries><TableRowEntry><TableColumnItems>"
+        $CodepointDisplayFields | % { "<TableColumnItem><PropertyName>$_</PropertyName></TableColumnItem>" }
+        $DefaultDisplayEncodings | % { "<TableColumnItem><Alignment>Right</Alignment><ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock></TableColumnItem>" }
+        "</TableColumnItems></TableRowEntry></TableRowEntries></TableControl>"
+        "</View>"
         '</ViewDefinitions></Configuration>'
     )
 
@@ -207,6 +204,22 @@ function getAge($code) {
     & $script:ageBlock $code
 }
 
+function getEncodings($str) {
+    $props = @{}
+    foreach ($encInfo in [System.Text.Encoding]::GetEncodings()) {
+        $enc = $encInfo.GetEncoding()
+        $name = $enc.WebName
+        if (-not $props.ContainsKey($name)) {
+            $bytes = if ($str -eq $null) { $null } else { $enc.GetBytes($str) }
+            $props.Add($name, [byte[]]$bytes)
+        }
+    }
+
+    $result = [pscustomobject]$props
+    $result.pstypenames.Add('unishell.encodings')
+    $result
+}
+
 function getChar($codepointName) {
     if (-not $script:charData.ContainsKey($codepointName)) {
         $stubString = $script:stubData[$codepointName]
@@ -245,11 +258,7 @@ function getChar($codepointName) {
                     UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
                     LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
                     TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
-
-                    ASCII                     = [byte[]]@(if ($value) { [System.Text.Encoding]::ASCII.GetBytes($value) } else { $null })
-                    ISO88591                  = [byte[]]@(if ($value) { [System.Text.Encoding]::GetEncoding(28591).GetBytes($value) } else { $null })
-                    UTF8                      = [byte[]]@(if ($value) { [System.Text.Encoding]::UTF8.GetBytes($value) } else { $null })
-                    UTF16                     = [byte[]]@(if ($value) { [System.Text.Encoding]::Unicode.GetBytes($value) } else { $null })
+                    Encodings                 = (getEncodings $value)
                 })
 
             $script:stubData.Remove($codepointName)
@@ -273,11 +282,7 @@ function getChar($codepointName) {
                     UppercaseMapping          = $null
                     LowercaseMapping          = $null
                     TitlecaseMapping          = $null
-
-                    ASCII                     = $null
-                    ISO88591                  = $null
-                    UTF8                      = $null
-                    UTF16                     = $null
+                    Encodings                 = (getEncodings $value)
                 })
         }
     }

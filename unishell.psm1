@@ -187,7 +187,7 @@ function getChar($codepointName) {
             }
 
             $name = $fields[1]
-            if ($fields[10]) {
+            if ($fields[10] -and ($fields[1] -like '<*>')) {
                 $name = "$name $($fields[10])"
             }
 

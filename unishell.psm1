@@ -291,19 +291,14 @@ function Expand-UniString {
         [string] $InputString
     )
 
-    $codePoints = $(
-        for ($i = 0; $i -lt $inputString.Length; $i++) {
-            [Char]::ConvertToUtf32($inputString, $i)
-            if ([Char]::IsHighSurrogate($inputString[$i])) {
-                $i++
-            }
-        }
-    )
-
     loadStub
 
-    $codepoints | % {
-        getChar "U+$($_.ToString('X4'))"
+    for ($i = 0; $i -lt $inputString.Length; $i++) {
+        $codepointName = 'U+' + [Char]::ConvertToUtf32($inputString, $i).ToString('X4')
+        getChar $codepointName
+        if ([Char]::IsHighSurrogate($inputString[$i])) {
+            $i++
+        }
     }
 }
 

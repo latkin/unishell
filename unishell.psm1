@@ -113,23 +113,23 @@ $bidiCategoryMappings = @{
 
 function plane($code) {
     if($code -lt 0) { Write-Error "Invalid codepoint" }
-    elseif($code -le 0xFFFF){ 'Basic Multilingual Plane' }
-    elseif($code -le 0x1FFFF) { 'Supplementary Multilingual Plane'}
-    elseif($code -le 0x2FFFF) { 'Supplementary Ideographic Plane' }
-    elseif($code -le 0x3FFFF) { 'Tertiary Ideographic Plane' }
-    elseif($code -le 0x4FFFF) { 'Plane 5 (unassigned)' }
-    elseif($code -le 0x5FFFF) { 'Plane 6 (unassigned)' }
-    elseif($code -le 0x6FFFF) { 'Plane 7 (unassigned)' }
-    elseif($code -le 0x7FFFF) { 'Plane 8 (unassigned)' }
-    elseif($code -le 0x8FFFF) { 'Plane 9 (unassigned)' }
-    elseif($code -le 0x9FFFF) { 'Plane 10 (unassigned)' }
-    elseif($code -le 0xAFFFF) { 'Plane 11 (unassigned)' }
-    elseif($code -le 0xBFFFF) { 'Plane 12 (unassigned)' }
-    elseif($code -le 0xCFFFF) { 'Plane 13 (unassigned)' }
-    elseif ($code -le 0xDFFFF) { 'Plane 14 (unassigned)' }
-    elseif ($code -le 0xEFFFF) { 'Supplementary Special-purpose Plane' }
-    elseif ($code -le 0xFFFFF) { 'Supplementary Private Use Area - A' }
-    elseif ($code -le 0x10FFFF) { 'Supplementary Private Use Area - B'}
+    elseif($code -le 0xFFFF){ '0 - Basic Multilingual Plane' }
+    elseif($code -le 0x1FFFF) { '1 - Supplementary Multilingual Plane'}
+    elseif($code -le 0x2FFFF) { '2 - Supplementary Ideographic Plane' }
+    elseif($code -le 0x3FFFF) { '3 - Tertiary Ideographic Plane' }
+    elseif($code -le 0x4FFFF) { '4 - Unassigned' }
+    elseif($code -le 0x5FFFF) { '5 - Unassigned' }
+    elseif($code -le 0x6FFFF) { '6 - Unassigned' }
+    elseif($code -le 0x7FFFF) { '7 - Unassigned' }
+    elseif($code -le 0x8FFFF) { '8 - Unassigned' }
+    elseif($code -le 0x9FFFF) { '9 - Unassigned' }
+    elseif($code -le 0xAFFFF) { '10 - Unassigned' }
+    elseif($code -le 0xBFFFF) { '11 - Unassigned' }
+    elseif($code -le 0xCFFFF) { '12 - Unassigned' }
+    elseif($code -le 0xDFFFF) { '13 - Unassigned' }
+    elseif($code -le 0xEFFFF) { '14 - Supplementary Special-purpose Plane' }
+    elseif($code -le 0xFFFFF) { '15 - Supplementary Private Use Area - A' }
+    elseif($code -le 0x10FFFF) { '16 - Supplementary Private Use Area - B'}
     else { Write-Error "Invalid codepoint" }
 }
 

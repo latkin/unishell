@@ -123,25 +123,30 @@ function loadCharData {
     Write-Progress -Activity 'Loading unicode data file'
 
     # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
-    $script:charData = Get-Content $script:unicodeDataPath | % {
+    $script:charData = @{}
+
+    Get-Content $script:unicodeDataPath | % {
         $line = $_
         $fields = $line.Split(';')
+
         $code = [Convert]::ToInt32($fields[0], 16)
-        $value = 
-        if (($code -lt 55296) -or ($code -gt 57343)) {
+
+        $value = if (($code -lt 55296) -or ($code -gt 57343)) {
             [char]::convertfromutf32($code)
-        }
-        else {
+        } else {
             $null
         }
+
         $name = $fields[1]
         if ($fields[10]) {
             $name = "$name $($fields[10])"
         }
 
-        [pscustomobject]@{
+        $codepointName = "U+" + $fields[0]
+
+        $script:charData[$codepointName] = [pscustomobject]@{
             Value                     = $value
-            Codepoint                 = "U+" + $fields[0]
+            Codepoint                 = $codepointName
             Name                      = $name
             Category                  = $generalCategoryMappings[$fields[2]]
             CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
@@ -174,4 +179,28 @@ function Get-CharData {
     $script:charData
 }
 
-Export-ModuleMember -Function 'Get-CharData'
+function Expand-UniString {
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)]
+        [string] $InputString
+    )
+
+    $codePoints = $(
+        for ($i = 0; $i -lt $inputString.Length; $i++) {
+            [Char]::ConvertToUtf32($inputString, $i)
+            if ([Char]::IsHighSurrogate($inputString[$i])) {
+                $i++
+            }
+        }
+    )
+
+    if (!$script:charData) {
+        loadCharData
+    }
+
+    $codepoints | % {
+        $script:charData["U+$($_.ToString('X4'))"]
+    }
+}
+
+Export-ModuleMember -Function 'Expand-UniString'

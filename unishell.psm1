@@ -1,5 +1,6 @@
 param(
     $UnicodeDataPath,
+    $DerivedAgePath,
     $CodepointDisplayFields = @('Codepoint','Name','ASCII','ISO88591','UTF8','UTF16','Value')
 )
 
@@ -12,6 +13,14 @@ if (-not (Test-Path $UnicodeDataPath)) {
     Write-Error "Cannot find Unicode data file at $unicodeDataPath"
     exit
 } 
+
+if (-not $DerivedAgePath) {
+    $DerivedAgePath = Join-Path $scriptDir 'DerivedAge.txt'
+}
+if (-not (Test-Path $DerivedAgePath)) {
+    Write-Error "Cannot find derived ages file at $derivedAgePath"
+    exit
+}
 
 $generalCategoryMappings = @{
     'Lu' = 'Lu - Letter, Uppercase'
@@ -151,6 +160,8 @@ updateFormatting
 
 $stubData = @{}
 $charData = @{}
+$ageBlock = $null
+
 function loadStub {
     # bail if already initialized
     if ($script:stubData.Count -ne 0) {
@@ -163,11 +174,37 @@ function loadStub {
         $codepointName = 'U+' + $line.SubString(0, $i)
         $script:stubData[$codepointName] = $line
     }
+
+    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:derivedAgePath).Path, [System.Text.Encoding]::UTF8)
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $clause = 'if'
+    foreach ($line in $lines) {
+        if ($line -match '^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))? *; (?<ver>[\d\.]+)') {
+            $start = $matches['start']
+            $end = $matches['end']
+            $version = $matches['ver']
+            if ($start -and $end) {
+                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ '$version' }")
+            }
+            else {
+                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { '$version' }")
+            }
+            $clause = 'elseif'
+        }
+    }
+    $null = $sb.AppendLine("else { 'Unassigned' } }")
+
+    $script:ageBlock = Invoke-Expression $sb.ToString()
 }
 
 function addCharData($data) {
     $data.pstypenames.Add('unishell.codepoint')
     $script:charData[$data.Codepoint] = $data
+}
+
+function getAge($code) {
+    & $script:ageBlock $code
 }
 
 function getChar($codepointName) {
@@ -192,54 +229,56 @@ function getChar($codepointName) {
             }
 
             addCharData ([pscustomobject]@{
-                Value                     = $value
-                Codepoint                 = $codepointName
-                Name                      = $name
-                Category                  = $generalCategoryMappings[$fields[2]]
-                CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
-                BidiCategory              = $bidiCategoryMappings[$fields[4]]
-                DecompositionMapping      = $fields[5]
-                DecimalDigitValue         = if ($fields[6]) { [int] $fields[6] } else {$null}
-                DigitValue                = $fields[7]
-                NumericValue              = $fields[8]
-                Mirrored                  = ($fields[9] -eq 'Y')
-                Plane                     = plane $code
-                UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
-                LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
-                TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
+                    Value                     = $value
+                    Codepoint                 = $codepointName
+                    Name                      = $name
+                    Category                  = $generalCategoryMappings[$fields[2]]
+                    UnicodeVersion            = (getAge $code)
+                    CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
+                    BidiCategory              = $bidiCategoryMappings[$fields[4]]
+                    DecompositionMapping      = $fields[5]
+                    DecimalDigitValue         = if ($fields[6]) { [int] $fields[6] } else {$null}
+                    DigitValue                = $fields[7]
+                    NumericValue              = $fields[8]
+                    Mirrored                  = ($fields[9] -eq 'Y')
+                    Plane                     = plane $code
+                    UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
+                    LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
+                    TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
 
-                ASCII                     = [byte[]]@(if ($value) { [System.Text.Encoding]::ASCII.GetBytes($value) } else { $null })
-                ISO88591                  = [byte[]]@(if ($value) { [System.Text.Encoding]::GetEncoding(28591).GetBytes($value) } else { $null })
-                UTF8                      = [byte[]]@(if ($value) { [System.Text.Encoding]::UTF8.GetBytes($value) } else { $null })
-                UTF16                     = [byte[]]@(if ($value) { [System.Text.Encoding]::Unicode.GetBytes($value) } else { $null })
-            })
+                    ASCII                     = [byte[]]@(if ($value) { [System.Text.Encoding]::ASCII.GetBytes($value) } else { $null })
+                    ISO88591                  = [byte[]]@(if ($value) { [System.Text.Encoding]::GetEncoding(28591).GetBytes($value) } else { $null })
+                    UTF8                      = [byte[]]@(if ($value) { [System.Text.Encoding]::UTF8.GetBytes($value) } else { $null })
+                    UTF16                     = [byte[]]@(if ($value) { [System.Text.Encoding]::Unicode.GetBytes($value) } else { $null })
+                })
 
             $script:stubData.Remove($codepointName)
         }
         else {
             $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
             addCharData ([pscustomobject]@{
-                Value                     = $null
-                Codepoint                 = $codepointName
-                Name                      = 'Unknown'
-                Category                  = $null
-                CanonicalCombiningClasses = $null
-                BidiCategory              = $null
-                DecompositionMapping      = $null
-                DecimalDigitValue         = $null
-                DigitValue                = $null
-                NumericValue              = $null
-                Mirrored                  = $false
-                Plane                     = plane $code
-                UppercaseMapping          = $null
-                LowercaseMapping          = $null
-                TitlecaseMapping          = $null
+                    Value                     = $null
+                    Codepoint                 = $codepointName
+                    Name                      = 'Unknown'
+                    Category                  = $null
+                    UnicodeVersion            = (getAge $code)
+                    CanonicalCombiningClasses = $null
+                    BidiCategory              = $null
+                    DecompositionMapping      = $null
+                    DecimalDigitValue         = $null
+                    DigitValue                = $null
+                    NumericValue              = $null
+                    Mirrored                  = $false
+                    Plane                     = plane $code
+                    UppercaseMapping          = $null
+                    LowercaseMapping          = $null
+                    TitlecaseMapping          = $null
 
-                ASCII                     = $null
-                ISO88591                  = $null
-                UTF8                      = $null
-                UTF16                     = $null
-            })
+                    ASCII                     = $null
+                    ISO88591                  = $null
+                    UTF8                      = $null
+                    UTF16                     = $null
+                })
         }
     }
 

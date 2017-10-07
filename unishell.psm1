@@ -1,6 +1,6 @@
 param(
     $UnicodeDataPath,
-    $CodepointDisplayFields = @('Value','Codepoint','Name','ASCII','ISO88591','UTF8','UTF16')
+    $CodepointDisplayFields = @('Codepoint','Name','ASCII','ISO88591','UTF8','UTF16','Value')
 )
 
 $scriptDir = Split-Path $psCommandPath

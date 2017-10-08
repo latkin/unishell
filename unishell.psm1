@@ -1,9 +1,7 @@
 param(
     $UnicodeDataPath,
     $DerivedAgePath,
-    $CodepointDisplayFields = @('Codepoint', 'Name'),
-    $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16'),
-    $ShowValue = $true
+    $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16')
 )
 
 $scriptDir = Split-Path $psCommandPath
@@ -140,17 +138,15 @@ function updateFormatting {
         "<View>"
         "<Name>codepoint</Name><ViewSelectedBy><TypeName>unishell.codepoint</TypeName></ViewSelectedBy>"
         "<TableControl><TableHeaders>"
-        $CodepointDisplayFields | % { "<TableColumnHeader><Label>$_</Label></TableColumnHeader>" }
+        "<TableColumnHeader><Label>Codepoint</Label></TableColumnHeader>"
+        "<TableColumnHeader><Label>Name</Label></TableColumnHeader>"
         $DefaultDisplayEncodings | % { "<TableColumnHeader><Label>$_</Label><Alignment>Right</Alignment></TableColumnHeader>" }
-        if ($showValue) {
-            "<TableColumnHeader><Label>Value</Label><Alignment>Center</Alignment></TableColumnHeader>"
-        }
+        "<TableColumnHeader><Label>Value</Label><Alignment>Center</Alignment></TableColumnHeader>"
         "</TableHeaders><TableRowEntries><TableRowEntry><TableColumnItems>"
-        $CodepointDisplayFields | % { "<TableColumnItem><PropertyName>$_</PropertyName></TableColumnItem>" }
+        "<TableColumnItem><ScriptBlock>`$_._Combiner + `$_.Codepoint</ScriptBlock></TableColumnItem>"
+        "<TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>"
         $DefaultDisplayEncodings | % { "<TableColumnItem><Alignment>Right</Alignment><ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock></TableColumnItem>" }
-        if ($showValue) {
-            "<TableColumnItem><PropertyName>Value</PropertyName></TableColumnItem>"
-        }
+        "<TableColumnItem><PropertyName>Value</PropertyName></TableColumnItem>"
         "</TableColumnItems></TableRowEntry></TableRowEntries></TableControl>"
         "</View>"
         "<View>"
@@ -356,11 +352,59 @@ function Expand-UniString {
 
     loadStub
 
+    $textElemPositions = [System.Globalization.StringInfo]::ParseCombiningCharacters($inputString)
+    $idx = 0
+    $elemStart = $textElemPositions[$idx]
+    $elemEnd = if ($textElemPositions.Length -gt ($idx + 1)) {
+        $textElemPositions[$idx + 1] - 1
+    }
+    else {
+        $inputString.Length - 1
+    }
+
     for ($i = 0; $i -lt $inputString.Length; $i++) {
         $codepointName = 'U+' + [Char]::ConvertToUtf32($inputString, $i).ToString('X4')
-        getChar $codepointName
+        $baseChar = (getChar $codepointName).PSObject.Copy()
+        $isHS = [Char]::IsHighSurrogate($inputString[$i])
+
+
+        $baseBefore = $i -gt 0
+        $baseAfter = $idx -lt ($textElemPositions.Length - 1)
+        $baseCurrent = $i -eq $elemStart
+
+        $pointBefore = $i -gt $elemStart
+        $pointAfter = ($i -lt ($elemEnd - 1)) -or (($i -eq ($elemEnd - 1)) -and !$isHS)
+
+        $indicatorA = 
+            if($baseCurrent -and $baseBefore -and $baseAfter){ ([char]0x251C) }
+            elseif($baseCurrent -and $baseBefore -and !$baseAfter){ [char] 0x2514 }
+            elseif($baseCurrent -and !$baseBefore -and $baseAfter){ ([char]0x250C) }
+            elseif($baseCurrent -and !$baseBefore -and !$baseAfter){ ([char]0x2500) }
+            elseif(!$baseCurrent -and $baseBefore -and $baseAfter){ ([char]0x2502) }
+            elseif(!$baseCurrent -and $baseBefore -and !$baseAfter){ " " }
+            else { Write-Error "Unexpected $i $elemStart $elemEnd $idx $baseCurrent $baseBefore $baseAfter" }
+
+        $indicatorB =
+            if($pointBefore -and $pointAfter) { ([char]0x251C) }
+            elseif($pointBefore -and !$pointAfter) { ([char]0x2514) }
+            elseif(!$pointBefore -and $pointAfter) { ([char]0x252C) }
+            else { ([char]0x2500) }
+
+        $baseChar | Add-Member -NotePropertyName '_Combiner' -NotePropertyValue "$indicatorA$indicatorB$([char]0x2500) " -PassThru
+
         if ([Char]::IsHighSurrogate($inputString[$i])) {
             $i++
+        }
+
+        if ($i -eq $elemEnd) {
+            $idx++
+            $elemStart = $elemEnd + 1
+            $elemEnd = if ($textElemPositions.Length -gt ($idx + 1)) {
+                $textElemPositions[$idx + 1] - 1
+            }
+            else {
+                $inputString.Length - 1
+            }
         }
     }
 }

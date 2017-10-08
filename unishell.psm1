@@ -314,6 +314,10 @@ function getEncodings($str) {
 function getChar($codepointName) {
     if (-not $script:charData.ContainsKey($codepointName)) {
         $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
+        if (($code -lt 0) -or ($code -gt 0x10ffff)) {
+            Write-Error "$codepointName is not a valid codepoint"
+            return
+        }
         $value = if (($code -lt 55296) -or ($code -gt 57343)) {
             [char]::convertfromutf32($code)
         }
@@ -450,7 +454,6 @@ function Expand-UniString {
 function Get-UniCodepoint {
     param(
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-        [ValidateScript({$_ -match '^(U\+)?[A-F0-9]{4,6}'})]
         [string] $Codepoint
     )
 
@@ -458,6 +461,9 @@ function Get-UniCodepoint {
 
     if ($Codepoint -match '^(U\+)?([A-F0-9]{4,6})') {
         getChar "U+$($matches[2])"
+    }
+    else {
+        Write-Error "$codepoint is not a valid codepoint"
     }
 }
 

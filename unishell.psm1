@@ -296,8 +296,9 @@ function getChar($codepointName) {
                     Value                     = $value
                     Codepoint                 = $codepointName.ToUpper()
                     Name                      = $name
-                    Category                  = $generalCategoryMappings[$fields[2]]
                     UnicodeVersion            = (getAge $code)
+                    Plane                     = plane $code
+                    Category                  = $generalCategoryMappings[$fields[2]]
                     CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
                     BidiCategory              = $bidiCategoryMappings[$fields[4]]
                     DecompositionMapping      = $fields[5]
@@ -305,7 +306,6 @@ function getChar($codepointName) {
                     DigitValue                = $fields[7]
                     NumericValue              = $fields[8]
                     Mirrored                  = ($fields[9] -eq 'Y')
-                    Plane                     = plane $code
                     UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
                     LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
                     TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
@@ -323,8 +323,9 @@ function getChar($codepointName) {
                     Value                     = $value
                     Codepoint                 = $codepointName.ToUpper()
                     Name                      = 'Unassigned'
-                    Category                  = $null
                     UnicodeVersion            = $null
+                    Plane                     = plane $code
+                    Category                  = $null
                     CanonicalCombiningClasses = $null
                     BidiCategory              = $null
                     DecompositionMapping      = $null
@@ -332,7 +333,6 @@ function getChar($codepointName) {
                     DigitValue                = $null
                     NumericValue              = $null
                     Mirrored                  = $false
-                    Plane                     = plane $code
                     UppercaseMapping          = $null
                     LowercaseMapping          = $null
                     TitlecaseMapping          = $null
@@ -367,17 +367,16 @@ function Expand-UniString {
         $baseChar = (getChar $codepointName).PSObject.Copy()
         $isHS = [Char]::IsHighSurrogate($inputString[$i])
 
-
+        $baseCurrent = $i -eq $elemStart
         $baseBefore = $i -gt 0
         $baseAfter = $idx -lt ($textElemPositions.Length - 1)
-        $baseCurrent = $i -eq $elemStart
 
         $pointBefore = $i -gt $elemStart
         $pointAfter = ($i -lt ($elemEnd - 1)) -or (($i -eq ($elemEnd - 1)) -and !$isHS)
 
         $indicatorA = 
             if($baseCurrent -and $baseBefore -and $baseAfter){ ([char]0x251C) }
-            elseif($baseCurrent -and $baseBefore -and !$baseAfter){ [char] 0x2514 }
+            elseif($baseCurrent -and $baseBefore -and !$baseAfter){ [char]0x2514 }
             elseif($baseCurrent -and !$baseBefore -and $baseAfter){ ([char]0x250C) }
             elseif($baseCurrent -and !$baseBefore -and !$baseAfter){ ([char]0x2500) }
             elseif(!$baseCurrent -and $baseBefore -and $baseAfter){ ([char]0x2502) }

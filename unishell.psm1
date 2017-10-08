@@ -2,6 +2,7 @@ param(
     $UnicodeDataPath,
     $DerivedAgePath,
     $BlocksPath,
+    $ScriptsPath,
     $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16')
 )
 
@@ -28,6 +29,14 @@ if (-not $BlocksPath) {
 }
 if (-not (Test-Path $BlocksPath)) {
     Write-Error "Cannot find blocks file at $blocksPath"
+    exit
+}
+
+if (-not $ScriptsPath) {
+    $ScriptsPath = Join-Path $scriptDir 'Scripts.txt'
+}
+if (-not (Test-Path $ScriptsPath)) {
+    Write-Error "Cannot find scripts file at $scriptsPath"
     exit
 }
 
@@ -186,6 +195,7 @@ $charData = @{}
 $rangeBlock = $null
 $ageBlock = $null
 $blockBlock = $null
+$scriptsBlock = $null
 
 function loadStub {
     # bail if already initialized
@@ -262,6 +272,30 @@ function loadStub {
 
     $null = $sb.AppendLine("else { 'Unassigned' } }")
     $script:blockBlock = Invoke-Expression $sb.ToString()
+
+    # initial parsing of Scripts.txt file
+    #  (contains info about what script a codepoint is expressed in)
+    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:ScriptsPath).Path, [System.Text.Encoding]::UTF8)
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $clause = 'if'
+    foreach ($line in $lines) {
+        if ($line -match '^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))? *?; (?<script>\w+?) #') {
+            $start = $matches['start']
+            $end = $matches['end']
+            $script = $matches['script']
+            if ($start -and $end) {
+                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ '$script' }")
+            }
+            else {
+                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { '$script' }")
+            }
+            $clause = 'elseif'
+        }
+    }
+
+    $null = $sb.AppendLine("else { 'Unknown' } }")
+    $script:scriptsBlock = Invoke-Expression $sb.ToString()
 }
 
 function addCharData($data) {
@@ -279,6 +313,10 @@ function getAge($code) {
 
 function getBlock($code) {
     & $script:blockBlock $code
+}
+
+function getScript($code) {
+    & $script:scriptsBlock $code
 }
 
 function getEncodings($str) {
@@ -340,6 +378,7 @@ function getChar($codepointName) {
                     Block                     = (getBlock $code)
                     Plane                     = plane $code
                     UnicodeVersion            = (getAge $code)
+                    Script                    = (getScript $code)
                     Category                  = $generalCategoryMappings[$fields[2]]
                     CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
                     BidiCategory              = $bidiCategoryMappings[$fields[4]]
@@ -368,6 +407,7 @@ function getChar($codepointName) {
                     Block                     = (getBlock $code)
                     Plane                     = (plane $code)
                     UnicodeVersion            = $null
+                    Script                    = (getScript $code)
                     Category                  = $null
                     CanonicalCombiningClasses = $null
                     BidiCategory              = $null

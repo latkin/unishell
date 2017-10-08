@@ -1,6 +1,7 @@
 param(
     $UnicodeDataPath,
     $DerivedAgePath,
+    $BlocksPath,
     $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16')
 )
 
@@ -19,6 +20,14 @@ if (-not $DerivedAgePath) {
 }
 if (-not (Test-Path $DerivedAgePath)) {
     Write-Error "Cannot find derived ages file at $derivedAgePath"
+    exit
+}
+
+if (-not $BlocksPath) {
+    $BlocksPath = Join-Path $scriptDir 'Blocks.txt'
+}
+if (-not (Test-Path $BlocksPath)) {
+    Write-Error "Cannot find blocks file at $blocksPath"
     exit
 }
 
@@ -126,8 +135,8 @@ function plane($code) {
     elseif($code -le 0xCFFFF) { '12 - Unassigned' }
     elseif($code -le 0xDFFFF) { '13 - Unassigned' }
     elseif($code -le 0xEFFFF) { '14 - Supplementary Special-purpose Plane' }
-    elseif($code -le 0xFFFFF) { '15 - Supplementary Private Use Area - A' }
-    elseif($code -le 0x10FFFF) { '16 - Supplementary Private Use Area - B'}
+    elseif($code -le 0xFFFFF) { '15 - Supplementary Private Use Area-A' }
+    elseif($code -le 0x10FFFF) { '16 - Supplementary Private Use Area-B'}
     else { Write-Error "Invalid codepoint" }
 }
 
@@ -176,6 +185,7 @@ $stubData = @{}
 $charData = @{}
 $rangeBlock = $null
 $ageBlock = $null
+$blockBlock = $null
 
 function loadStub {
     # bail if already initialized
@@ -183,6 +193,8 @@ function loadStub {
         return
     }
 
+    # initial parsing of UnicodeData.txt file
+    #  (contains core properties)
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:unicodeDataPath).Path, [System.Text.Encoding]::UTF8)
     $sb = [System.Text.StringBuilder]::new()
     $null = $sb.AppendLine('[scriptblock] { param($code)')
@@ -208,6 +220,8 @@ function loadStub {
     $null = $sb.AppendLine("else { `$null } }")
     $script:rangeBlock = Invoke-Expression $sb.ToString()
 
+    # initial parsing of DerivedAge.txt file
+    #  (contains info pertaining to the Unicode version in which a codepoint was initially introduced)
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:derivedAgePath).Path, [System.Text.Encoding]::UTF8)
     $sb = [System.Text.StringBuilder]::new()
     $null = $sb.AppendLine('[scriptblock] { param($code)')
@@ -229,6 +243,25 @@ function loadStub {
 
     $null = $sb.AppendLine("else { 'Unassigned' } }")
     $script:ageBlock = Invoke-Expression $sb.ToString()
+
+    # initial parsing of Blocks.txt file
+    #  (contains info about what named block a codepoint resides in)
+    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:blocksPath).Path, [System.Text.Encoding]::UTF8)
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $clause = 'if'
+    foreach ($line in $lines) {
+        if ($line -match '^(?<start>[A-F0-9]{4,6})\.\.(?<end>[A-F0-9]{4,6}); (?<block>[a-zA-Z0-9 \-]+)') {
+            $start = $matches['start']
+            $end = $matches['end']
+            $block = $matches['block']
+            $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ '$block' }")
+            $clause = 'elseif'
+        }
+    }
+
+    $null = $sb.AppendLine("else { 'Unassigned' } }")
+    $script:blockBlock = Invoke-Expression $sb.ToString()
 }
 
 function addCharData($data) {
@@ -242,6 +275,10 @@ function getRange($code) {
 
 function getAge($code) {
     & $script:ageBlock $code
+}
+
+function getBlock($code) {
+    & $script:blockBlock $code
 }
 
 function getEncodings($str) {
@@ -296,8 +333,9 @@ function getChar($codepointName) {
                     Value                     = $value
                     Codepoint                 = $codepointName.ToUpper()
                     Name                      = $name
-                    UnicodeVersion            = (getAge $code)
+                    Block                     = (getBlock $code)
                     Plane                     = plane $code
+                    UnicodeVersion            = (getAge $code)
                     Category                  = $generalCategoryMappings[$fields[2]]
                     CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
                     BidiCategory              = $bidiCategoryMappings[$fields[4]]
@@ -323,8 +361,9 @@ function getChar($codepointName) {
                     Value                     = $value
                     Codepoint                 = $codepointName.ToUpper()
                     Name                      = 'Unassigned'
+                    Block                     = (getBlock $code)
+                    Plane                     = (plane $code)
                     UnicodeVersion            = $null
-                    Plane                     = plane $code
                     Category                  = $null
                     CanonicalCombiningClasses = $null
                     BidiCategory              = $null

@@ -1,3 +1,2 @@
 *.format.ps1xml
-UnicodeData.txt
-DerivedAge.txt
+*.txt

@@ -3,6 +3,7 @@ param(
     $DerivedAgePath,
     $BlocksPath,
     $ScriptsPath,
+    $LineBreakPath,
     $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16')
 )
 
@@ -37,6 +38,14 @@ if (-not $ScriptsPath) {
 }
 if (-not (Test-Path $ScriptsPath)) {
     Write-Error "Cannot find scripts file at $scriptsPath"
+    exit
+}
+
+if (-not $LineBreakPath) {
+    $LineBreakPath = Join-Path $scriptDir 'LineBreak.txt'
+}
+if (-not (Test-Path $LineBreakPath)) {
+    Write-Error "Cannot find line break file at $lineBreakPath"
     exit
 }
 
@@ -127,6 +136,52 @@ $bidiCategoryMappings = @{
     'ON'  = 'ON - Other Neutrals'
 }
 
+$lineBreakMappings = @{
+    'BK' = 'BK - Mandatory Break'
+    'CR' = 'Carriage Return'
+    'LF' = 'Line Feed'
+    'CM' = 'Combining Mark'
+    'NL' = 'Next Line'
+    'SG' = 'Surrogate'
+    'WJ' = 'Word Joiner'
+    'ZW' = 'Zero Width Space'
+    'GL' = 'Non-breaking ("Glue")'
+    'SP' = 'Space'
+    'ZWJ' = 'Zero Width Joiner'
+    'B2'  = 'Break Opportunity Before and After'
+    'BA'  = 'Break After'
+    'BB'  = 'Break Before'
+    'HY'  = 'Hyphen'
+    'CB'  = 'Contingent Break Opportunity'
+    'CL'  = 'Close Punctuation'
+    'CP'  = 'Close Parenthesis'
+    'EX'  = 'Exclamation/Interrogation'
+    'IN'  = 'Inseparable'
+    'NS'  = 'Nonstarter'
+    'OP'  = 'Open Punctuation'
+    'QU'  = 'Quotation'
+    'IS'  = 'Infix Numeric Separator'
+    'NU'  = 'Numeric'
+    'PO'  = 'Postfix Numeric'
+    'PR'  = 'Prefix Numeric'
+    'SY'  = 'Symbols Allowing Break After'
+    'AI'  = 'Ambiguous (Alphabetic or Ideographic)'
+    'AL'  = 'Alphabetic'
+    'CJ'  = 'Conditional Japanese Starter'
+    'EB'  = 'Emoji Base'
+    'EM'  = 'Emoji modifier'
+    'H2'  = 'Hangul LV Syllable'
+    'H3'  = 'Hangul LVT Syllable'
+    'HL'  = 'Hebrew Letter'
+    'ID'  = 'Ideographic'
+    'JL'  = 'Hangul L Jamo'
+    'JV'  = 'Hangul V Jamo'
+    'JT'  = 'Hangul T Jamo'
+    'RI'  = 'Regional Indicator'
+    'SA'  = 'Complex Context Dependent (South East Asian)'
+    'XX' = 'Unknown'
+}
+
 function plane($code) {
     if($code -lt 0) { Write-Error "Invalid codepoint" }
     elseif($code -le 0xFFFF){ '0 - Basic Multilingual Plane' }
@@ -196,6 +251,7 @@ $rangeBlock = $null
 $ageBlock = $null
 $blockBlock = $null
 $scriptsBlock = $null
+$lineBreakBlock = $null
 
 function loadStub {
     # bail if already initialized
@@ -296,6 +352,30 @@ function loadStub {
 
     $null = $sb.AppendLine("else { 'Unknown' } }")
     $script:scriptsBlock = Invoke-Expression $sb.ToString()
+
+    # initial parsing of LineBreak.txt file
+    #  (contains info about line break behavior)
+    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:LineBreakPath).Path, [System.Text.Encoding]::UTF8)
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $clause = 'if'
+    foreach ($line in $lines) {
+        if ($line -match '^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))?;(?<class>[A-Z]{2,3}) ') {
+            $start = $matches['start']
+            $end = $matches['end']
+            $script = $matches['class']
+            if ($start -and $end) {
+                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ `$lineBreakMappings['$script'] }")
+            }
+            else {
+                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { `$lineBreakMappings['$script'] }")
+            }
+            $clause = 'elseif'
+        }
+    }
+
+    $null = $sb.AppendLine("else { `$lineBreakMappings['XX'] } }")
+    $script:lineBreakBlock = Invoke-Expression $sb.ToString()
 }
 
 function addCharData($data) {
@@ -317,6 +397,10 @@ function getBlock($code) {
 
 function getScript($code) {
     & $script:scriptsBlock $code
+}
+
+function getLineBreak($code) {
+    & $script:lineBreakBlock $code
 }
 
 function getEncodings($str) {
@@ -379,6 +463,7 @@ function getChar($codepointName) {
                     Plane                     = plane $code
                     UnicodeVersion            = (getAge $code)
                     Script                    = (getScript $code)
+                    LineBreakClass            = (getLineBreak $code)
                     Category                  = $generalCategoryMappings[$fields[2]]
                     CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
                     BidiCategory              = $bidiCategoryMappings[$fields[4]]
@@ -408,6 +493,7 @@ function getChar($codepointName) {
                     Plane                     = (plane $code)
                     UnicodeVersion            = $null
                     Script                    = (getScript $code)
+                    LineBreakClass            = (getLineBreak $code)
                     Category                  = $null
                     CanonicalCombiningClasses = $null
                     BidiCategory              = $null

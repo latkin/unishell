@@ -191,41 +191,42 @@ function plane($code) {
 }
 
 function updateFormatting {
-    $content = $(
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<Configuration><ViewDefinitions>'
-        "<View>"
-        "<Name>codepoint</Name><ViewSelectedBy><TypeName>unishell.codepoint</TypeName></ViewSelectedBy>"
-        "<TableControl><TableHeaders>"
-        "<TableColumnHeader><Label>Codepoint</Label></TableColumnHeader>"
-        "<TableColumnHeader><Label>Name</Label></TableColumnHeader>"
-        $DefaultDisplayEncodings | % { "<TableColumnHeader><Label>$_</Label><Alignment>Right</Alignment></TableColumnHeader>" }
-        "<TableColumnHeader><Label>Value</Label><Alignment>Center</Alignment></TableColumnHeader>"
-        "</TableHeaders><TableRowEntries><TableRowEntry><TableColumnItems>"
-        "<TableColumnItem><ScriptBlock>`$_._Combiner + `$_.Codepoint</ScriptBlock></TableColumnItem>"
-        "<TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>"
-        $DefaultDisplayEncodings | % { "<TableColumnItem><Alignment>Right</Alignment><ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock></TableColumnItem>" }
-        "<TableColumnItem><PropertyName>Value</PropertyName></TableColumnItem>"
-        "</TableColumnItems></TableRowEntry></TableRowEntries></TableControl>"
-        "</View>"
-        "<View>"
-        "<Name>encodings</Name><ViewSelectedBy><TypeName>unishell.encodings</TypeName></ViewSelectedBy>"
-        "<ListControl><ListEntries><ListEntry><ListItems>"
-        $allEncodings | % {
-            "<ListItem>"
-            "<Label>$($_.webname)</Label>"
-            "<ScriptBlock>(`$_.'$($_.webname)' |%{ `$_.ToString('X2') }) -join ' '</ScriptBlock>"
-            "</ListItem>"
+    $formatFilepath = "$script:scriptDir/unishell.format.ps1xml"
+
+    Get-Content "$script:scriptDir/unishell.format.template.xml" | % {
+        switch -regex ($_) {
+            '##DEFAULT_ENCODING_HEADERS##' {
+                $defaultDisplayEncodings | % {
+                    "<TableColumnHeader>"
+                    "<Label>$_</Label>"
+                    "<Alignment>Right</Alignment>"
+                    "</TableColumnHeader>"
+                }
+                break
+            }
+            '##DEFAULT_ENCODING_ITEMS##' {
+                $defaultDisplayEncodings | % {
+                    "<TableColumnItem>"
+                    "<Alignment>Right</Alignment>"
+                    "<ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock>"
+                    "</TableColumnItem>"
+                }
+                break
+            }
+            '##ENCODINGS_LIST_ITEMS##' {
+                $allEncodings | % {
+                    "<ListItem>"
+                    "<Label>$($_.webname)</Label>"
+                    "<ScriptBlock>(`$_.'$($_.webname)' |%{ `$_.ToString('X2') }) -join ' '</ScriptBlock>"
+                    "</ListItem>"
+                }
+                break
+            }
+            default { $_ }
         }
-        "</ListItems></ListEntry></ListEntries></ListControl>"
-        "</View>"
-        '</ViewDefinitions></Configuration>'
-    )
+    } | Out-File $formatFilepath -Encoding ascii
 
-    $path = Join-Path $scriptDir 'unishell.format.ps1xml'
-    $content | Out-File $path -Encoding ascii
-
-    Update-FormatData -AppendPath $path
+    Update-FormatData -AppendPath $formatFilepath
     Update-FormatData
 }
 

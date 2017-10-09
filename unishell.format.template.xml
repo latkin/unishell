@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>codepoint</Name>
+      <ViewSelectedBy>
+        <TypeName>unishell.codepoint</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader>
+            <Label>Codepoint</Label>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Label>Name</Label>
+          </TableColumnHeader>
+          ##DEFAULT_ENCODING_HEADERS##
+          <TableColumnHeader>
+            <Label>Value</Label>
+            <Alignment>Center</Alignment>
+          </TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem>
+                <ScriptBlock>$_._Combiner + $_.Codepoint</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <PropertyName>Name</PropertyName>
+              </TableColumnItem>
+              ##DEFAULT_ENCODING_ITEMS##
+              <TableColumnItem>
+                <PropertyName>Value</PropertyName>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>encodings</Name>
+      <ViewSelectedBy>
+        <TypeName>unishell.encodings</TypeName>
+      </ViewSelectedBy>
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+              ##ENCODINGS_LIST_ITEMS##
+            </ListItems>
+          </ListEntry>
+        </ListEntries>
+      </ListControl>
+    </View>
+  </ViewDefinitions>
+</Configuration>

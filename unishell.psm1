@@ -1,52 +1,38 @@
 param(
-    $UnicodeDataPath,
-    $DerivedAgePath,
-    $BlocksPath,
-    $ScriptsPath,
-    $LineBreakPath,
+    $DataFilesDirectory,
     $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16')
 )
 
 $scriptDir = Split-Path $psCommandPath
 
-if (-not $UnicodeDataPath) {
-    $UnicodeDataPath = Join-Path $scriptDir 'UnicodeData.txt'
-}
-if (-not (Test-Path $UnicodeDataPath)) {
-    Write-Error "Cannot find Unicode data file at $unicodeDataPath"
-    exit
-} 
-
-if (-not $DerivedAgePath) {
-    $DerivedAgePath = Join-Path $scriptDir 'DerivedAge.txt'
-}
-if (-not (Test-Path $DerivedAgePath)) {
-    Write-Error "Cannot find derived ages file at $derivedAgePath"
-    exit
+if (-not $dataFilesDirectory) {
+    $dataFilesDirectory = $scriptDir
 }
 
-if (-not $BlocksPath) {
-    $BlocksPath = Join-Path $scriptDir 'Blocks.txt'
-}
-if (-not (Test-Path $BlocksPath)) {
-    Write-Error "Cannot find blocks file at $blocksPath"
-    exit
-}
+$unicodeDataPath = "$dataFilesDirectory/UnicodeData.txt"
+$derivedAgePath =  "$dataFilesDirectory/DerivedAge.txt"
+$blocksPath =  "$dataFilesDirectory/Blocks.txt"
+$scriptsPath = "$dataFilesDirectory/Scripts.txt"
+$lineBreakPath = "$dataFilesDirectory/LineBreak.txt"
 
-if (-not $ScriptsPath) {
-    $ScriptsPath = Join-Path $scriptDir 'Scripts.txt'
-}
-if (-not (Test-Path $ScriptsPath)) {
-    Write-Error "Cannot find scripts file at $scriptsPath"
-    exit
-}
+$missingFiles = @()
+if (-not (Test-Path $unicodeDataPath)) { $missingFiles += 'UnicodeData.txt' }
+if (-not (Test-Path $derivedAgePath)) { $missingFiles += 'DerivedAge.txt' }
+if (-not (Test-Path $blocksPath)) { $missingFiles += 'Blocks.txt' }
+if (-not (Test-Path $scriptsPath )) { $missingFiles += 'Scripts.txt' }
+if (-not (Test-Path $lineBreakPath)) { $missingFiles += 'LineBreak.txt' }
 
-if (-not $LineBreakPath) {
-    $LineBreakPath = Join-Path $scriptDir 'LineBreak.txt'
-}
-if (-not (Test-Path $LineBreakPath)) {
-    Write-Error "Cannot find line break file at $lineBreakPath"
-    exit
+if ($missingFiles.Length -ne 0) {
+    $errorMessage = "Required Unicode data files ($missingFiles) were not found."
+    Write-Host $errorMessage -ForegroundColor Yellow
+    if ((Read-Host 'Press Y to download these files now') -match 'y') {
+        $missingFiles | % { 
+            Invoke-WebRequest "https://www.unicode.org/Public/10.0.0/ucd/$_" -OutFile "$dataFilesDirectory/$_"
+        }
+    } else {
+        Write-Error $errorMessage
+        exit
+    }
 }
 
 $allEncodings = [System.Text.Encoding]::GetEncodings().GetEncoding()
@@ -580,6 +566,7 @@ function Expand-UniString {
 function Get-UniCodepoint {
     param(
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [ValidateScript({ $_ -match '^(U\+)?([A-F0-9]{4,6})' })]
         [string] $Codepoint
     )
 

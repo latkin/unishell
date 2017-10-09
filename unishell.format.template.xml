@@ -1,11 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Configuration>
+  <Controls>
+  <Control>
+    <Name>codepoint-string</Name>
+   <CustomControl>
+        <CustomEntries>
+          <CustomEntry>
+            <CustomItem>
+              <Frame>
+                <CustomItem>
+                  <ExpressionBinding>
+                    <PropertyName>_OriginatingString</PropertyName>
+                  </ExpressionBinding>
+                </CustomItem>
+              </Frame>
+            </CustomItem>
+          </CustomEntry>
+        </CustomEntries>
+      </CustomControl>
+      </Control>
+    </Controls>
   <ViewDefinitions>
     <View>
-      <Name>codepoint</Name>
+      <Name>codepoint-table</Name>
       <ViewSelectedBy>
         <TypeName>unishell.codepoint</TypeName>
       </ViewSelectedBy>
+      <GroupBy>
+        <PropertyName>_OriginatingString</PropertyName> 
+        <CustomControlName>codepoint-string</CustomControlName>  
+      </GroupBy>
       <TableControl>
         <TableHeaders>
           <TableColumnHeader>
@@ -24,7 +48,9 @@
           <TableRowEntry>
             <TableColumnItems>
               <TableColumnItem>
-                <ScriptBlock>$_._Combiner + $_.Codepoint</ScriptBlock>
+                <Alignment>Right</Alignment>
+                <ScriptBlock>
+                if($_.PSObject.Members['_Combiner']){$_._Combiner + $_.Codepoint.PadLeft(8)} else {$_.Codepoint}</ScriptBlock>
               </TableColumnItem>
               <TableColumnItem>
                 <PropertyName>Name</PropertyName>
@@ -37,6 +63,40 @@
           </TableRowEntry>
         </TableRowEntries>
       </TableControl>
+    </View>
+     <View>
+      <Name>codepoint-list</Name>
+      <ViewSelectedBy>
+        <TypeName>unishell.codepoint</TypeName>
+      </ViewSelectedBy>
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+              <ListItem><PropertyName>Value</PropertyName></ListItem>
+              <ListItem><PropertyName>Codepoint</PropertyName></ListItem>
+              <ListItem><PropertyName>Name</PropertyName></ListItem>
+              <ListItem><PropertyName>Block</PropertyName></ListItem>
+              <ListItem><PropertyName>Plane</PropertyName></ListItem>
+              <ListItem><PropertyName>UnicodeVersion</PropertyName></ListItem>
+              <ListItem><PropertyName>Script</PropertyName></ListItem>
+              <ListItem><PropertyName>LineBreakClass</PropertyName></ListItem>
+              <ListItem><PropertyName>Category</PropertyName></ListItem>
+              <ListItem><PropertyName>CanonicalCombiningClasses</PropertyName></ListItem>
+              <ListItem><PropertyName>BidiCategory</PropertyName></ListItem>
+              <ListItem><PropertyName>DecompositionMapping</PropertyName></ListItem>
+              <ListItem><PropertyName>DecimalDigitValue</PropertyName></ListItem>
+              <ListItem><PropertyName>DigitValue</PropertyName></ListItem>
+              <ListItem><PropertyName>NumericValue</PropertyName></ListItem>
+              <ListItem><PropertyName>Mirrored</PropertyName></ListItem>
+              <ListItem><PropertyName>UppercaseMapping</PropertyName></ListItem>
+              <ListItem><PropertyName>LowercaseMapping</PropertyName></ListItem>
+              <ListItem><PropertyName>TitlecaseMapping</PropertyName></ListItem>
+              <ListItem><PropertyName>Encodings</PropertyName></ListItem>
+            </ListItems>
+          </ListEntry>
+        </ListEntries>
+      </ListControl>
     </View>
     <View>
       <Name>encodings</Name>

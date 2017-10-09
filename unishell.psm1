@@ -545,7 +545,9 @@ function Expand-UniString {
             elseif(!$pointBefore -and $pointAfter) { ([char]0x252C) }
             else { ([char]0x2500) }
 
-        $baseChar | Add-Member -NotePropertyName '_Combiner' -NotePropertyValue "$indicatorA$indicatorB$([char]0x2500) " -PassThru
+        $baseChar `
+            | Add-Member -NotePropertyName '_Combiner' -NotePropertyValue "$indicatorA$indicatorB$([char]0x2500) " -PassThru `
+            | Add-Member -NotePropertyName '_OriginatingString' -NotePropertyValue $inputString -PassThru
 
         if ([Char]::IsHighSurrogate($inputString[$i])) {
             $i++

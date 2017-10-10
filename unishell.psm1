@@ -511,18 +511,26 @@ function Get-UniCodepoint {
     [CmdletBinding(DefaultParameterSetName = 'string')]
     param(
         [Parameter(Mandatory = $true , ParameterSetName = 'string', Position = 0, ValueFromPipeline = $true)]
-        [string] $InputString,
-        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint', Position = 0)]
-        [int] $Codepoint
+        [string[]] $InputString,
+        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint', Position = 0, ValueFromPipeline = $true)]
+        [int[]] $Codepoint
     )
 
-    loadStub
-
-    if ($psCmdlet.ParameterSetName -eq 'codepoint') {
-        getChar "U+$($codepoint.ToString('X4'))"
+    begin {
+        loadStub
     }
-    elseif ($psCmdlet.ParameterSetName -eq 'string') {
-        expandString $inputString
+
+    process {
+        if ($psCmdlet.ParameterSetName -eq 'codepoint') {
+            foreach($c in $codepoint) {
+                getChar "U+$($c.ToString('X4'))"
+            }
+        }
+        elseif ($psCmdlet.ParameterSetName -eq 'string') {
+            foreach ($s in $inputString) {
+                expandString $s
+            }
+        }
     }
 }
 

@@ -236,9 +236,32 @@ $stubData = @{}
 $charData = @{}
 $rangeBlock = $null
 $ageBlock = $null
-$blockBlock = $null
+$blocksBlock = $null
 $scriptsBlock = $null
 $lineBreakBlock = $null
+
+function genRangedLookup($path, $fieldRegex, $fieldValueFunc, $defaultValue) {
+    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $path).Path, [System.Text.Encoding]::UTF8)
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $clause = 'if'
+    foreach ($line in $lines) {
+        if ($line -cmatch "^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))?$fieldRegex") {
+            $start = $matches['start']
+            $end = $matches['end']
+            if ($start -and $end) {
+                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ $(& $fieldValueFunc) }")
+            }
+            else {
+                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { $(& $fieldValueFunc) }")
+            }
+            $clause = 'elseif'
+        }
+    }
+
+    $null = $sb.AppendLine("else { $defaultValue } }")
+    Invoke-Expression $sb.ToString()
+}
 
 function loadStub {
     # bail if already initialized
@@ -257,7 +280,7 @@ function loadStub {
         $f0 = $fields[0]
         $codepointName = 'U+' + $f0
 
-        if ($fields[1] -match '^\<(?<rangeName>[a-zA-Z0-9 ]+?), (?<marker>First|Last)>$') {
+        if ($fields[1] -cmatch '^\<(?<rangeName>[a-zA-Z0-9 ]+?), (?<marker>First|Last)>$') {
             $fields[1] = $matches['rangeName']
             if ($matches['marker'] -eq 'First') {
                 $null = $sb.Append("$clause((`$code -ge 0x$f0) -and ")
@@ -275,94 +298,19 @@ function loadStub {
 
     # initial parsing of DerivedAge.txt file
     #  (contains info pertaining to the Unicode version in which a codepoint was initially introduced)
-    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:derivedAgePath).Path, [System.Text.Encoding]::UTF8)
-    $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($code)')
-    $clause = 'if'
-    foreach ($line in $lines) {
-        if ($line -match '^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))? *; (?<ver>[\d\.]+)') {
-            $start = $matches['start']
-            $end = $matches['end']
-            $version = $matches['ver']
-            if ($start -and $end) {
-                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ '$version' }")
-            }
-            else {
-                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { '$version' }")
-            }
-            $clause = 'elseif'
-        }
-    }
-
-    $null = $sb.AppendLine("else { 'Unassigned' } }")
-    $script:ageBlock = Invoke-Expression $sb.ToString()
+    $script:ageBlock = genRangedLookup $script:derivedAgePath  ' *; (?<ver>[\d\.]+)' { "'$($matches['ver'])'" } "'Unassigned'"
 
     # initial parsing of Blocks.txt file
     #  (contains info about what named block a codepoint resides in)
-    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:blocksPath).Path, [System.Text.Encoding]::UTF8)
-    $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($code)')
-    $clause = 'if'
-    foreach ($line in $lines) {
-        if ($line -match '^(?<start>[A-F0-9]{4,6})\.\.(?<end>[A-F0-9]{4,6}); (?<block>[a-zA-Z0-9 \-]+)') {
-            $start = $matches['start']
-            $end = $matches['end']
-            $block = $matches['block']
-            $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ '$block' }")
-            $clause = 'elseif'
-        }
-    }
-
-    $null = $sb.AppendLine("else { 'Unassigned' } }")
-    $script:blockBlock = Invoke-Expression $sb.ToString()
+    $script:blocksBlock = genRangedLookup $script:blocksPath  '; (?<block>[a-zA-Z0-9 \-]+)' { "'$($matches['block'])'" } "'Unassigned'"
 
     # initial parsing of Scripts.txt file
     #  (contains info about what script a codepoint is expressed in)
-    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:ScriptsPath).Path, [System.Text.Encoding]::UTF8)
-    $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($code)')
-    $clause = 'if'
-    foreach ($line in $lines) {
-        if ($line -match '^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))? *?; (?<script>\w+?) #') {
-            $start = $matches['start']
-            $end = $matches['end']
-            $script = $matches['script']
-            if ($start -and $end) {
-                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ '$script' }")
-            }
-            else {
-                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { '$script' }")
-            }
-            $clause = 'elseif'
-        }
-    }
-
-    $null = $sb.AppendLine("else { 'Unknown' } }")
-    $script:scriptsBlock = Invoke-Expression $sb.ToString()
+    $script:scriptsBlock = genRangedLookup $script:scriptsPath  ' *?; (?<script>[A-Za-z0-9_]+?) #' { "'$($matches['script'])'" } "'Unknown'"
 
     # initial parsing of LineBreak.txt file
     #  (contains info about line break behavior)
-    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:LineBreakPath).Path, [System.Text.Encoding]::UTF8)
-    $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($code)')
-    $clause = 'if'
-    foreach ($line in $lines) {
-        if ($line -match '^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))?;(?<class>[A-Z]{2,3}) ') {
-            $start = $matches['start']
-            $end = $matches['end']
-            $script = $matches['class']
-            if ($start -and $end) {
-                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ `$lineBreakMappings['$script'] }")
-            }
-            else {
-                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { `$lineBreakMappings['$script'] }")
-            }
-            $clause = 'elseif'
-        }
-    }
-
-    $null = $sb.AppendLine("else { `$lineBreakMappings['XX'] } }")
-    $script:lineBreakBlock = Invoke-Expression $sb.ToString()
+    $script:lineBreakBlock = genRangedLookup $script:lineBreakPath  ';(?<class>[A-Z]{2,3}) ' { "`$lineBreakMappings['$($matches['class'])']" } "`$lineBreakMappings['XX']"
 }
 
 function addCharData($data) {
@@ -379,7 +327,7 @@ function getAge($code) {
 }
 
 function getBlock($code) {
-    & $script:blockBlock $code
+    & $script:blocksBlock $code
 }
 
 function getScript($code) {

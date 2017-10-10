@@ -494,7 +494,7 @@ function Expand-UniString {
             else { ([char]0x2500) }
 
         $baseChar `
-            | Add-Member -NotePropertyName '_Combiner' -NotePropertyValue "$indicatorA$indicatorB$([char]0x2500) " -PassThru `
+            | Add-Member -NotePropertyName '_Combiner' -NotePropertyValue "$indicatorA$indicatorB " -PassThru `
             | Add-Member -NotePropertyName '_OriginatingString' -NotePropertyValue $inputString -PassThru
 
         if ([Char]::IsHighSurrogate($inputString[$i])) {

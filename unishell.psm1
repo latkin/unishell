@@ -190,13 +190,13 @@ function plane($codepoint) {
     else { Write-Error "Invalid codepoint" }
 }
 
-function updateFormatting {
+function updateFormatting($displayEncodings) {
     $formatFilepath = "$script:scriptDir/unishell.format.ps1xml"
 
     Get-Content "$script:scriptDir/unishell.format.template.xml" | % {
         switch -regex ($_) {
             '##DEFAULT_ENCODING_HEADERS##' {
-                $defaultDisplayEncodings | % {
+                $displayEncodings | % {
                     "<TableColumnHeader>"
                     "<Label>$_</Label>"
                     "<Alignment>Right</Alignment>"
@@ -205,7 +205,7 @@ function updateFormatting {
                 break
             }
             '##DEFAULT_ENCODING_ITEMS##' {
-                $defaultDisplayEncodings | % {
+                $displayEncodings | % {
                     "<TableColumnItem>"
                     "<Alignment>Right</Alignment>"
                     "<ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock>"
@@ -230,7 +230,7 @@ function updateFormatting {
     Update-FormatData
 }
 
-updateFormatting
+updateFormatting $defaultDisplayEncodings
 
 $stubData = @{}
 $charData = @{}
@@ -514,23 +514,42 @@ function Get-UniCodepoint {
         [Parameter(Mandatory = $true , ParameterSetName = 'string', Position = 0, ValueFromPipeline = $true)]
         [string[]] $InputString,
         [Parameter(Mandatory = $true, ParameterSetName = 'codepoint', Position = 0, ValueFromPipeline = $true)]
-        [int[]] $Codepoint
+        [int[]] $Codepoint,
+        [string[]] $Encoding
     )
 
     begin {
         loadStub
+        $changedFormatting = $false
+        if ($encoding) {
+            $displayEncodings = $encoding | % { $allEncodings.WebName -like $_ } | Select-Object -Unique
+            if (-not $displayEncodings) {
+                Write-Warning "$encoding does not match any available encodings"
+                return
+            }
+            else {
+                updateFormatting $displayEncodings
+                $changedFormatting = $true
+            }
+        }
     }
 
     process {
         if ($psCmdlet.ParameterSetName -eq 'codepoint') {
-            foreach($c in $codepoint) {
-                getChar "U+$($c.ToString('X4'))"
+            foreach ($c in $codepoint) {
+                getChar $c
             }
         }
         elseif ($psCmdlet.ParameterSetName -eq 'string') {
             foreach ($s in $inputString) {
                 expandString $s
             }
+        }
+    }
+
+    end {
+        if ($changedFormatting) {
+            updateFormatting $script:defaultDisplayEncodings
         }
     }
 }

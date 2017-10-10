@@ -168,25 +168,25 @@ $lineBreakMappings = @{
     'XX'  = 'XX - Unknown'
 }
 
-function plane($code) {
-    if($code -lt 0) { Write-Error "Invalid codepoint" }
-    elseif($code -le 0xFFFF){ '0 - Basic Multilingual Plane' }
-    elseif($code -le 0x1FFFF) { '1 - Supplementary Multilingual Plane'}
-    elseif($code -le 0x2FFFF) { '2 - Supplementary Ideographic Plane' }
-    elseif($code -le 0x3FFFF) { '3 - Tertiary Ideographic Plane' }
-    elseif($code -le 0x4FFFF) { '4 - Unassigned' }
-    elseif($code -le 0x5FFFF) { '5 - Unassigned' }
-    elseif($code -le 0x6FFFF) { '6 - Unassigned' }
-    elseif($code -le 0x7FFFF) { '7 - Unassigned' }
-    elseif($code -le 0x8FFFF) { '8 - Unassigned' }
-    elseif($code -le 0x9FFFF) { '9 - Unassigned' }
-    elseif($code -le 0xAFFFF) { '10 - Unassigned' }
-    elseif($code -le 0xBFFFF) { '11 - Unassigned' }
-    elseif($code -le 0xCFFFF) { '12 - Unassigned' }
-    elseif($code -le 0xDFFFF) { '13 - Unassigned' }
-    elseif($code -le 0xEFFFF) { '14 - Supplementary Special-purpose Plane' }
-    elseif($code -le 0xFFFFF) { '15 - Supplementary Private Use Area-A' }
-    elseif($code -le 0x10FFFF) { '16 - Supplementary Private Use Area-B'}
+function plane($codepoint) {
+    if($codepoint -lt 0) { Write-Error "Invalid codepoint" }
+    elseif($codepoint -le 0xFFFF){ '0 - Basic Multilingual Plane' }
+    elseif($codepoint -le 0x1FFFF) { '1 - Supplementary Multilingual Plane'}
+    elseif($codepoint -le 0x2FFFF) { '2 - Supplementary Ideographic Plane' }
+    elseif($codepoint -le 0x3FFFF) { '3 - Tertiary Ideographic Plane' }
+    elseif($codepoint -le 0x4FFFF) { '4 - Unassigned' }
+    elseif($codepoint -le 0x5FFFF) { '5 - Unassigned' }
+    elseif($codepoint -le 0x6FFFF) { '6 - Unassigned' }
+    elseif($codepoint -le 0x7FFFF) { '7 - Unassigned' }
+    elseif($codepoint -le 0x8FFFF) { '8 - Unassigned' }
+    elseif($codepoint -le 0x9FFFF) { '9 - Unassigned' }
+    elseif($codepoint -le 0xAFFFF) { '10 - Unassigned' }
+    elseif($codepoint -le 0xBFFFF) { '11 - Unassigned' }
+    elseif($codepoint -le 0xCFFFF) { '12 - Unassigned' }
+    elseif($codepoint -le 0xDFFFF) { '13 - Unassigned' }
+    elseif($codepoint -le 0xEFFFF) { '14 - Supplementary Special-purpose Plane' }
+    elseif($codepoint -le 0xFFFFF) { '15 - Supplementary Private Use Area-A' }
+    elseif($codepoint -le 0x10FFFF) { '16 - Supplementary Private Use Area-B'}
     else { Write-Error "Invalid codepoint" }
 }
 
@@ -243,17 +243,17 @@ $lineBreakBlock = $null
 function genRangedLookup($path, $fieldRegex, $fieldValueFunc, $defaultValue) {
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $path).Path, [System.Text.Encoding]::UTF8)
     $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $null = $sb.AppendLine('[scriptblock] { param($codepoint)')
     $clause = 'if'
     foreach ($line in $lines) {
         if ($line -cmatch "^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))?$fieldRegex") {
             $start = $matches['start']
             $end = $matches['end']
             if ($start -and $end) {
-                $null = $sb.AppendLine("$clause((`$code -ge 0x$start) -and (`$code -le 0x$end)){ $(& $fieldValueFunc) }")
+                $null = $sb.AppendLine("$clause((`$codepoint -ge 0x$start) -and (`$codepoint -le 0x$end)){ $(& $fieldValueFunc) }")
             }
             else {
-                $null = $sb.AppendLine("$clause(`$code -eq 0x$start) { $(& $fieldValueFunc) }")
+                $null = $sb.AppendLine("$clause(`$codepoint -eq 0x$start) { $(& $fieldValueFunc) }")
             }
             $clause = 'elseif'
         }
@@ -273,24 +273,24 @@ function loadStub {
     #  (contains core properties)
     $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:unicodeDataPath).Path, [System.Text.Encoding]::UTF8)
     $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($code)')
+    $null = $sb.AppendLine('[scriptblock] { param($codepoint)')
     $clause = 'if'
     foreach ($line in $lines) {
         $fields = $line.Split(';')
         $f0 = $fields[0]
-        $codepointName = 'U+' + $f0
+        $codepoint = [Convert]::ToInt32($f0, 16)
 
         if ($fields[1] -cmatch '^\<(?<rangeName>[a-zA-Z0-9 ]+?), (?<marker>First|Last)>$') {
             $fields[1] = $matches['rangeName']
             if ($matches['marker'] -eq 'First') {
-                $null = $sb.Append("$clause((`$code -ge 0x$f0) -and ")
+                $null = $sb.Append("$clause((`$codepoint -ge 0x$f0) -and ")
                 $clause = 'elseif'
             }
             else {
-                $null = $sb.AppendLine("(`$code -le 0x$f0)){ '$codepointName' }")
+                $null = $sb.AppendLine("(`$codepoint -le 0x$f0)){ $codepoint }")
             }
         }
-        $script:stubData[$codepointName] = $fields
+        $script:stubData[$codepoint] = $fields
     }
 
     $null = $sb.AppendLine("else { `$null } }")
@@ -318,24 +318,24 @@ function addCharData($data) {
     $script:charData[$data.Codepoint] = $data
 }
 
-function getRange($code) {
-    & $script:rangeBlock $code
+function getRange($codepoint) {
+    & $script:rangeBlock $codepoint
 }
 
-function getAge($code) {
-    & $script:ageBlock $code
+function getAge($codepoint) {
+    & $script:ageBlock $codepoint
 }
 
-function getBlock($code) {
-    & $script:blocksBlock $code
+function getBlock($codepoint) {
+    & $script:blocksBlock $codepoint
 }
 
-function getScript($code) {
-    & $script:scriptsBlock $code
+function getScript($codepoint) {
+    & $script:scriptsBlock $codepoint
 }
 
-function getLineBreak($code) {
-    & $script:lineBreakBlock $code
+function getLineBreak($codepoint) {
+    & $script:lineBreakBlock $codepoint
 }
 
 function getEncodings($str) {
@@ -368,20 +368,19 @@ function getEncodings($str) {
     $result
 }
 
-function getChar($codepointName) {
-    if (-not $script:charData.ContainsKey($codepointName)) {
-        $code = [Convert]::ToInt32($codepointName.Substring(2), 16)
-        if (($code -lt 0) -or ($code -gt 0x10ffff)) {
-            Write-Error "$codepointName is not a valid codepoint"
+function getChar($codepoint) {
+    if (-not $script:charData.ContainsKey($codepoint)) {
+        if (($codepoint -lt 0) -or ($codepoint -gt 0x10ffff)) {
+            Write-Error "$codepoint (0x$($codepoint.ToString('X4'))) is not a valid codepoint"
             return
         }
-        $value = if (($code -lt 55296) -or ($code -gt 57343)) {
-            [char]::convertfromutf32($code)
+        $value = if (($codepoint -lt 55296) -or ($codepoint -gt 57343)) {
+            [char]::ConvertFromUtf32($codepoint)
         }
         else {
             $null
         }
-        $fields = $script:stubData[$codepointName]
+        $fields = $script:stubData[$codepoint]
 
         if ($fields) {
             # format of UnicodeData.txt described at ftp://unicode.org/Public/3.0-Update/UnicodeData-3.0.0.html
@@ -392,13 +391,14 @@ function getChar($codepointName) {
 
             addCharData ([pscustomobject]@{
                     Value                     = $value
-                    Codepoint                 = $codepointName.ToUpper()
+                    Codepoint                 = $codepoint
+                    CodepointString           = "U+$($codepoint.ToString('X4'))"
                     Name                      = $name
-                    Block                     = (getBlock $code)
-                    Plane                     = plane $code
-                    UnicodeVersion            = (getAge $code)
-                    Script                    = (getScript $code)
-                    LineBreakClass            = (getLineBreak $code)
+                    Block                     = (getBlock $codepoint)
+                    Plane                     = plane $codepoint
+                    UnicodeVersion            = (getAge $codepoint)
+                    Script                    = (getScript $codepoint)
+                    LineBreakClass            = (getLineBreak $codepoint)
                     Category                  = $generalCategoryMappings[$fields[2]]
                     CanonicalCombiningClasses = $combiningClassMappings[$fields[3]]
                     BidiCategory              = $bidiCategoryMappings[$fields[4]]
@@ -407,28 +407,29 @@ function getChar($codepointName) {
                     DigitValue                = $fields[7]
                     NumericValue              = $fields[8]
                     Mirrored                  = ($fields[9] -eq 'Y')
-                    UppercaseMapping          = if ($fields[12]) { "U+" + $fields[12] } else { $null }
-                    LowercaseMapping          = if ($fields[13]) { "U+" + $fields[13] } else { $null }
-                    TitlecaseMapping          = if ($fields[14]) { "U+" + $fields[14] } else { $null }
+                    UppercaseMapping          = if ($fields[12]) { [Convert]::ToInt32($fields[12], 16) } else { $null }
+                    LowercaseMapping          = if ($fields[13]) { [Convert]::ToInt32($fields[13], 16) } else { $null }
+                    TitlecaseMapping          = if ($fields[14]) { [Convert]::ToInt32($fields[14], 16) } else { $null }
                     Encodings                 = (getEncodings $value)
                 })
         }
         else {
-            $rangeCodepointName = getRange $code
-            if ($rangeCodepointName) {
-                $script:stubData[$codepointName] = $script:stubData[$rangeCodepointName]
-                return (getChar $codepointName)
+            $rangeCodepoint = getRange $codepoint
+            if ($rangeCodepoint) {
+                $script:stubData[$codepoint] = $script:stubData[$rangeCodepoint]
+                return (getChar $codepoint)
             }
 
             addCharData ([pscustomobject]@{
                     Value                     = $value
-                    Codepoint                 = $codepointName.ToUpper()
+                    Codepoint                 = $codepoint
+                    CodepointString           = "U+$($codepoint.ToString('X4'))"
                     Name                      = 'Unassigned'
-                    Block                     = (getBlock $code)
-                    Plane                     = (plane $code)
+                    Block                     = (getBlock $codepoint)
+                    Plane                     = (plane $codepoint)
                     UnicodeVersion            = $null
-                    Script                    = (getScript $code)
-                    LineBreakClass            = (getLineBreak $code)
+                    Script                    = (getScript $codepoint)
+                    LineBreakClass            = (getLineBreak $codepoint)
                     Category                  = $null
                     CanonicalCombiningClasses = $null
                     BidiCategory              = $null
@@ -445,7 +446,7 @@ function getChar($codepointName) {
         }
     }
 
-    $script:charData[$codepointName]
+    $script:charData[$codepoint]
 }
 
 function expandString($inputString) {
@@ -460,8 +461,8 @@ function expandString($inputString) {
     }
 
     for ($i = 0; $i -lt $inputString.Length; $i++) {
-        $codepointName = 'U+' + [Char]::ConvertToUtf32($inputString, $i).ToString('X4')
-        $baseChar = (getChar $codepointName).PSObject.Copy()
+        $codepoint = [Char]::ConvertToUtf32($inputString, $i)
+        $baseChar = (getChar $codepoint).PSObject.Copy()
         $isHS = [Char]::IsHighSurrogate($inputString[$i])
 
         $baseCurrent = $i -eq $elemStart

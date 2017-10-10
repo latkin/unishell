@@ -49,8 +49,7 @@
             <TableColumnItems>
               <TableColumnItem>
                 <Alignment>Right</Alignment>
-                <ScriptBlock>
-                if($_.PSObject.Members['_Combiner']){$_._Combiner + $_.Codepoint.PadLeft(8)} else {$_.Codepoint}</ScriptBlock>
+                <ScriptBlock>if($_.PSObject.Members['_Combiner']){$_._Combiner + $_.CodepointString.PadLeft(8)} else { $_.CodepointString }</ScriptBlock>
               </TableColumnItem>
               <TableColumnItem>
                 <PropertyName>Name</PropertyName>
@@ -74,7 +73,7 @@
           <ListEntry>
             <ListItems>
               <ListItem><PropertyName>Value</PropertyName></ListItem>
-              <ListItem><PropertyName>Codepoint</PropertyName></ListItem>
+              <ListItem><Label>Codepoint</Label><ScriptBlock>$_.CodepointString</ScriptBlock></ListItem>
               <ListItem><PropertyName>Name</PropertyName></ListItem>
               <ListItem><PropertyName>Block</PropertyName></ListItem>
               <ListItem><PropertyName>Plane</PropertyName></ListItem>
@@ -89,9 +88,9 @@
               <ListItem><PropertyName>DigitValue</PropertyName></ListItem>
               <ListItem><PropertyName>NumericValue</PropertyName></ListItem>
               <ListItem><PropertyName>Mirrored</PropertyName></ListItem>
-              <ListItem><PropertyName>UppercaseMapping</PropertyName></ListItem>
-              <ListItem><PropertyName>LowercaseMapping</PropertyName></ListItem>
-              <ListItem><PropertyName>TitlecaseMapping</PropertyName></ListItem>
+              <ListItem><Label>UppercaseMapping</Label><ScriptBlock>'U+' + $_.UppercaseMapping.ToString('X4')</ScriptBlock></ListItem>
+              <ListItem><Label>LowercaseMapping</Label><ScriptBlock>'U+' + $_.LowercaseMapping.ToString('X4')</ScriptBlock></ListItem>
+              <ListItem><Label>TitlecaseMapping</Label><ScriptBlock>'U+' + $_.TitlecaseMapping.ToString('X4')</ScriptBlock></ListItem>
               <ListItem><PropertyName>Encodings</PropertyName></ListItem>
             </ListItems>
           </ListEntry>

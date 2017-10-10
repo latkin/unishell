@@ -1,6 +1,6 @@
 param(
     $DataFilesDirectory,
-    $DefaultDisplayEncodings = @('us-ascii', 'utf-8', 'utf-16')
+    $DefaultDisplayEncodings = @('utf-8', 'utf-16')
 )
 
 $scriptDir = Split-Path $psCommandPath
@@ -448,14 +448,7 @@ function getChar($codepointName) {
     $script:charData[$codepointName]
 }
 
-function Expand-UniString {
-    param(
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)]
-        [string] $InputString
-    )
-
-    loadStub
-
+function expandString($inputString) {
     $textElemPositions = [System.Globalization.StringInfo]::ParseCombiningCharacters($inputString)
     $idx = 0
     $elemStart = $textElemPositions[$idx]
@@ -515,20 +508,22 @@ function Expand-UniString {
 }
 
 function Get-UniCodepoint {
+    [CmdletBinding(DefaultParameterSetName = 'string')]
     param(
-        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-        [ValidateScript({ $_ -match '^(U\+)?([A-F0-9]{4,6})' })]
-        [string] $Codepoint
+        [Parameter(Mandatory = $true , ParameterSetName = 'string', Position = 0, ValueFromPipeline = $true)]
+        [string] $InputString,
+        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint', Position = 0)]
+        [int] $Codepoint
     )
 
     loadStub
 
-    if ($Codepoint -match '^(U\+)?([A-F0-9]{4,6})') {
-        getChar "U+$($matches[2])"
+    if ($psCmdlet.ParameterSetName -eq 'codepoint') {
+        getChar "U+$($codepoint.ToString('X4'))"
     }
-    else {
-        Write-Error "$codepoint is not a valid codepoint"
+    elseif ($psCmdlet.ParameterSetName -eq 'string') {
+        expandString $inputString
     }
 }
 
-Export-ModuleMember -Function 'Expand-UniString','Get-UniCodepoint'
+Export-ModuleMember -Function 'Get-UniCodepoint'

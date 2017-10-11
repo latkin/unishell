@@ -36,7 +36,6 @@ if ($missingFiles.Length -ne 0) {
 }
 
 $allEncodings = [System.Text.Encoding]::GetEncodings().GetEncoding()
-$maxDefaultDisplayEncodingLength = ($DefaultDisplayEncodings | % Length | Measure-Object -Maximum).Maximum
 
 $generalCategoryMappings = @{
     'Lu' = 'Lu - Letter, Uppercase'
@@ -535,6 +534,27 @@ function Get-UniCodepoint {
     end {
         if ($changedFormatting) {
             updateFormatting $script:defaultDisplayEncodings
+        }
+    }
+}
+
+if (Get-Command 'Register-ArgumentCompleter' -ea 0) {
+    Register-ArgumentCompleter -CommandName 'Get-UniCodepoint' -ParameterName 'Encoding' -ScriptBlock {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $boundParameters)
+
+        $quote = $null
+        if ($wordToComplete -match "^(`"|')") {
+            $quote = $matches[1]
+            $wordToComplete = $wordToComplete -replace "^(`"|')+"
+        }
+        $wordToComplete = $wordToComplete -replace "(`"|')+$"
+
+        $script:allEncodings |? WebName -like "$wordToComplete*" | % WebName | % {
+            $localQuote =
+                if ($quote) { $quote }
+                elseif ($_ -match '\s') { "'" }
+                else { $null }
+            "$localQuote$_$localQuote"
         }
     }
 }

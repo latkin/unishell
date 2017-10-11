@@ -38,7 +38,7 @@
           <TableColumnHeader>
             <Label>Name</Label>
           </TableColumnHeader>
-          ##DEFAULT_ENCODING_HEADERS##
+          ##DEFAULT_ENCODING_TABLE_HEADERS##
           <TableColumnHeader>
             <Label>Value</Label>
             <Alignment>Center</Alignment>
@@ -54,7 +54,7 @@
               <TableColumnItem>
                 <PropertyName>Name</PropertyName>
               </TableColumnItem>
-              ##DEFAULT_ENCODING_ITEMS##
+              ##DEFAULT_ENCODING_TABLE_ITEMS##
               <TableColumnItem>
                 <PropertyName>Value</PropertyName>
               </TableColumnItem>
@@ -91,22 +91,7 @@
               <ListItem><Label>UppercaseMapping</Label><ScriptBlock>'U+' + $_.UppercaseMapping.ToString('X4')</ScriptBlock></ListItem>
               <ListItem><Label>LowercaseMapping</Label><ScriptBlock>'U+' + $_.LowercaseMapping.ToString('X4')</ScriptBlock></ListItem>
               <ListItem><Label>TitlecaseMapping</Label><ScriptBlock>'U+' + $_.TitlecaseMapping.ToString('X4')</ScriptBlock></ListItem>
-              <ListItem><PropertyName>Encodings</PropertyName></ListItem>
-            </ListItems>
-          </ListEntry>
-        </ListEntries>
-      </ListControl>
-    </View>
-    <View>
-      <Name>encodings</Name>
-      <ViewSelectedBy>
-        <TypeName>unishell.encodings</TypeName>
-      </ViewSelectedBy>
-      <ListControl>
-        <ListEntries>
-          <ListEntry>
-            <ListItems>
-              ##ENCODINGS_LIST_ITEMS##
+              ##ENCODING_LIST_ITEMS##
             </ListItems>
           </ListEntry>
         </ListEntries>

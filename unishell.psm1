@@ -195,7 +195,7 @@ function updateFormatting($displayEncodings) {
 
     Get-Content "$script:scriptDir/unishell.format.template.xml" | % {
         switch -regex ($_) {
-            '##DEFAULT_ENCODING_HEADERS##' {
+            '##DEFAULT_ENCODING_TABLE_HEADERS##' {
                 $displayEncodings | % {
                     "<TableColumnHeader>"
                     "<Label>$_</Label>"
@@ -204,20 +204,20 @@ function updateFormatting($displayEncodings) {
                 }
                 break
             }
-            '##DEFAULT_ENCODING_ITEMS##' {
+            '##DEFAULT_ENCODING_TABLE_ITEMS##' {
                 $displayEncodings | % {
                     "<TableColumnItem>"
                     "<Alignment>Right</Alignment>"
-                    "<ScriptBlock>((`$_.Encodings.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock>"
+                    "<ScriptBlock>((`$_.'$_' |%{ `$_.ToString('X2') }) -join ' ').PadLeft(12)</ScriptBlock>"
                     "</TableColumnItem>"
                 }
                 break
             }
-            '##ENCODINGS_LIST_ITEMS##' {
-                $allEncodings | % {
+            '##ENCODING_LIST_ITEMS##' {
+                $displayEncodings | % {
                     "<ListItem>"
-                    "<Label>$($_.webname)</Label>"
-                    "<ScriptBlock>(`$_.'$($_.webname)' |%{ `$_.ToString('X2') }) -join ' '</ScriptBlock>"
+                    "<Label>$_</Label>"
+                    "<ScriptBlock>(`$_.'$_' |%{ `$_.ToString('X2') }) -join ' '</ScriptBlock>"
                     "</ListItem>"
                 }
                 break
@@ -313,7 +313,7 @@ function loadStub {
     $script:lineBreakBlock = genRangedLookup $script:lineBreakPath  ';(?<class>[A-Z]{2,3}) ' { "`$lineBreakMappings['$($matches['class'])']" } "`$lineBreakMappings['XX']"
 }
 
-function addCharData($data) {
+function saveCharData($data) {
     $data.pstypenames.Add('unishell.codepoint')
     $script:charData[$data.Codepoint] = $data
 }
@@ -338,34 +338,17 @@ function getLineBreak($codepoint) {
     & $script:lineBreakBlock $codepoint
 }
 
-function getEncodings($str) {
+function addEncodings($codepointObj) {
     $props = @{}
     foreach ($enc in $allEncodings) {
         $name = $enc.WebName
         if (-not $props.ContainsKey($name)) {
-            $bytes = if ($str -eq $null) { ,@() } else { $enc.GetBytes($str) }
+            $bytes = if ($codepointObj.Value -eq $null) { ,@() } else { $enc.GetBytes($codepointObj.Value) }
             $props.Add($name, [byte[]]$bytes)
         }
     }
 
-    $sb = [System.Text.StringBuilder]::new()
-    foreach ($defaultEnc in $DefaultDisplayEncodings) {
-        $null = $sb.Append($defaultEnc.PadRight($maxDefaultDisplayEncodingLength))
-        $null = $sb.Append(' : ')
-        $null = $sb.AppendLine((($props[$defaultEnc] | % { $_.ToString('X2') }) -join ' '))
-    }
-    if ($DefaultDisplayEncodings.Count -lt $allEncodings.Count) {
-        $null = $sb.AppendLine('...')
-    }
-    $null = $sb.Remove($sb.Length - 1, 1)
-    $toString = $sb.ToString()
-
-    $result = [pscustomobject]$props
-    $result.pstypenames.Add('unishell.encodings')
-    $result | Add-Member -MemberType ScriptMethod -Name 'ToString' -Force -Value {
-        $toString
-    }.GetNewClosure()
-    $result
+    $codepointObj | Add-Member -NotePropertyMembers $props -Force -PassThru
 }
 
 function getChar($codepoint) {
@@ -389,7 +372,7 @@ function getChar($codepoint) {
                 $name = "$name $($fields[10])"
             }
 
-            addCharData ([pscustomobject]@{
+            $obj = [pscustomobject]@{
                     Value                     = $value
                     Codepoint                 = $codepoint
                     CodepointString           = "U+$($codepoint.ToString('X4'))"
@@ -410,8 +393,9 @@ function getChar($codepoint) {
                     UppercaseMapping          = if ($fields[12]) { [Convert]::ToInt32($fields[12], 16) } else { $null }
                     LowercaseMapping          = if ($fields[13]) { [Convert]::ToInt32($fields[13], 16) } else { $null }
                     TitlecaseMapping          = if ($fields[14]) { [Convert]::ToInt32($fields[14], 16) } else { $null }
-                    Encodings                 = (getEncodings $value)
-                })
+                }
+                $obj = addEncodings $obj
+                saveCharData $obj
         }
         else {
             $rangeCodepoint = getRange $codepoint
@@ -420,7 +404,7 @@ function getChar($codepoint) {
                 return (getChar $codepoint)
             }
 
-            addCharData ([pscustomobject]@{
+            $obj = [pscustomobject]@{
                     Value                     = $value
                     Codepoint                 = $codepoint
                     CodepointString           = "U+$($codepoint.ToString('X4'))"
@@ -441,8 +425,9 @@ function getChar($codepoint) {
                     UppercaseMapping          = $null
                     LowercaseMapping          = $null
                     TitlecaseMapping          = $null
-                    Encodings                 = (getEncodings $value)
-                })
+                }
+                $obj = addEncodings $obj
+                saveCharData $obj
         }
     }
 

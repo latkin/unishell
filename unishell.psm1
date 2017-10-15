@@ -240,26 +240,25 @@ $scriptsBlock = $null
 $lineBreakBlock = $null
 
 function genRangedLookup($path, $fieldRegex, $fieldValueFunc, $defaultValue) {
-    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $path).Path, [System.Text.Encoding]::UTF8)
-    $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($codepoint)')
-    $clause = 'if'
-    foreach ($line in $lines) {
+    $rangeList = New-Object 'System.Collections.Generic.List[hashtable]'
+
+    foreach ($line in [System.IO.File]::ReadLines((Resolve-Path $path).Path, [System.Text.Encoding]::UTF8)) {
         if ($line -cmatch "^(?<start>[A-F0-9]{4,6})(\.\.(?<end>[A-F0-9]{4,6}))?$fieldRegex") {
-            $start = $matches['start']
-            $end = $matches['end']
-            if ($start -and $end) {
-                $null = $sb.AppendLine("$clause((`$codepoint -ge 0x$start) -and (`$codepoint -le 0x$end)){ $(& $fieldValueFunc) }")
-            }
-            else {
-                $null = $sb.AppendLine("$clause(`$codepoint -eq 0x$start) { $(& $fieldValueFunc) }")
-            }
-            $clause = 'elseif'
+            $start = [Convert]::ToInt32($matches['start'], 16)
+            $end = if($matches['end']){ [Convert]::ToInt32($matches['end'], 16) } else { $start }
+            $rangeList.Add(@{ start = $start; end = $end; value = (& $fieldValueFunc) })
         }
     }
 
-    $null = $sb.AppendLine("else { $defaultValue } }")
-    Invoke-Expression $sb.ToString()
+    {
+        param($codepoint)
+        foreach($range in $rangeList){
+            if($codepoint -ge $range.start -and $codepoint -le $range.end){
+                return $range.value
+            }
+        }
+        return $defaultValue
+    }.GetNewClosure()
 }
 
 function loadStub {
@@ -270,46 +269,50 @@ function loadStub {
 
     # initial parsing of UnicodeData.txt file
     #  (contains core properties)
-    $lines = [System.IO.File]::ReadAllLines((Resolve-Path $script:unicodeDataPath).Path, [System.Text.Encoding]::UTF8)
-    $sb = [System.Text.StringBuilder]::new()
-    $null = $sb.AppendLine('[scriptblock] { param($codepoint)')
-    $clause = 'if'
-    foreach ($line in $lines) {
+    $rangeList = New-Object 'System.Collections.Generic.List[hashtable]'
+    $rangeItem = $null
+    foreach ($line in ([System.IO.File]::ReadLines((Resolve-Path $script:unicodeDataPath).Path, [System.Text.Encoding]::UTF8))) {
         $fields = $line.Split(';')
         $f0 = $fields[0]
         $codepoint = [Convert]::ToInt32($f0, 16)
-
+        
         if ($fields[1] -cmatch '^\<(?<rangeName>[a-zA-Z0-9 ]+?), (?<marker>First|Last)>$') {
             $fields[1] = $matches['rangeName']
             if ($matches['marker'] -eq 'First') {
-                $null = $sb.Append("$clause((`$codepoint -ge 0x$f0) -and ")
-                $clause = 'elseif'
+                $rangeItem = @{start = $codepoint; end = 0}
             }
             else {
-                $null = $sb.AppendLine("(`$codepoint -le 0x$f0)){ $codepoint }")
+                $rangeItem['end'] = $codepoint
+                $rangeList.Add($rangeItem)
             }
         }
         $script:stubData[$codepoint] = $fields
     }
 
-    $null = $sb.AppendLine("else { `$null } }")
-    $script:rangeBlock = Invoke-Expression $sb.ToString()
+    $script:rangeBlock = {
+        param($codepoint)
+        foreach($range in $rangeList){
+            if($codepoint -ge $range.start -and $codepoint -le $range.end){
+                return $range.start
+            }
+        }
+    }.GetNewClosure()
 
     # initial parsing of DerivedAge.txt file
     #  (contains info pertaining to the Unicode version in which a codepoint was initially introduced)
-    $script:ageBlock = genRangedLookup $script:derivedAgePath  ' *; (?<ver>[\d\.]+)' { "'$($matches['ver'])'" } "'Unassigned'"
+    $script:ageBlock = genRangedLookup $script:derivedAgePath  ' *; (?<ver>[\d\.]+)' { $matches['ver'] } 'Unassigned'
 
     # initial parsing of Blocks.txt file
     #  (contains info about what named block a codepoint resides in)
-    $script:blocksBlock = genRangedLookup $script:blocksPath  '; (?<block>[a-zA-Z0-9 \-]+)' { "'$($matches['block'])'" } "'Unassigned'"
+    $script:blocksBlock = genRangedLookup $script:blocksPath  '; (?<block>[a-zA-Z0-9 \-]+)' { $matches['block'] } 'Unassigned'
 
     # initial parsing of Scripts.txt file
     #  (contains info about what script a codepoint is expressed in)
-    $script:scriptsBlock = genRangedLookup $script:scriptsPath  ' *?; (?<script>[A-Za-z0-9_]+?) #' { "'$($matches['script'])'" } "'Unknown'"
+    $script:scriptsBlock = genRangedLookup $script:scriptsPath  ' *?; (?<script>[A-Za-z0-9_]+?) #' { $matches['script'] } 'Unknown'
 
     # initial parsing of LineBreak.txt file
     #  (contains info about line break behavior)
-    $script:lineBreakBlock = genRangedLookup $script:lineBreakPath  ';(?<class>[A-Z]{2,3}) ' { "`$lineBreakMappings['$($matches['class'])']" } "`$lineBreakMappings['XX']"
+    $script:lineBreakBlock = genRangedLookup $script:lineBreakPath ';(?<class>[A-Z]{2,3}) ' { $lineBreakMappings[$matches['class']] } $lineBreakMappings['XX']
 }
 
 function saveCharData($data) {

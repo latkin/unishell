@@ -1,6 +1,7 @@
 param(
     $DataFilesDirectory,
-    $DefaultDisplayEncodings = @('utf-8', 'utf-16')
+    $DefaultDisplayEncodings = @('utf-8', 'utf-16'),
+    $AutoDownloadDataFiles
 )
 
 $scriptDir = Split-Path $psCommandPath
@@ -25,7 +26,7 @@ if (-not (Test-Path $lineBreakPath)) { $missingFiles += 'LineBreak.txt' }
 if ($missingFiles.Length -ne 0) {
     $errorMessage = "Required Unicode data files ($missingFiles) were not found."
     Write-Host $errorMessage -ForegroundColor Yellow
-    if ((Read-Host 'Press Y to download these files now') -match 'y') {
+    if ($AutoDownloadDataFiles -or ((Read-Host 'Press Y to download these files now') -match 'y')) {
         $missingFiles | % { 
             Invoke-WebRequest "https://www.unicode.org/Public/10.0.0/ucd/$_" -OutFile "$dataFilesDirectory/$_"
         }
@@ -363,7 +364,7 @@ function getChar($codepoint) {
             [char]::ConvertFromUtf32($codepoint)
         }
         else {
-            $null
+            [char] $codepoint
         }
         $fields = $script:stubData[$codepoint]
 
@@ -448,9 +449,14 @@ function expandString($inputString) {
     }
 
     for ($i = 0; $i -lt $inputString.Length; $i++) {
-        $codepoint = [Char]::ConvertToUtf32($inputString, $i)
+        $codepoint = try {
+            [Char]::ConvertToUtf32($inputString, $i)
+        } catch {
+            # handle case of unpaired surrogates
+            [int]$inputString[$i]
+        }
         $baseChar = (getChar $codepoint).PSObject.Copy()
-        $isHS = [Char]::IsHighSurrogate($inputString[$i])
+        $isHS = ([Char]::IsHighSurrogate($inputString[$i]) -and ($i -lt $inputString.Length - 1) -and ([Char]::IsLowSurrogate($inputSTring[$i + 1])))
 
         $baseCurrent = $i -eq $elemStart
         $baseBefore = $i -gt 0
@@ -478,7 +484,7 @@ function expandString($inputString) {
             | Add-Member -NotePropertyName '_Combiner' -NotePropertyValue "$indicatorA$indicatorB " -PassThru `
             | Add-Member -NotePropertyName '_OriginatingString' -NotePropertyValue $inputString -PassThru
 
-        if ([Char]::IsHighSurrogate($inputString[$i])) {
+        if ($isHS) {
             $i++
         }
 

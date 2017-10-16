@@ -256,6 +256,12 @@ test "Not-specified encodings are not added to default list output" {
     cnm 'utf-16' $output
 }
 
+test "Hidden fields are not shown in default list output" {
+    $output = "abc" | Get-UniCodepoint | fl | Out-string
+    cnm '_Combiner' $output
+    cnm '_OriginatingString' $output
+}
+
 # module-level tests
 test "module import can download data files" {
     $files = @('UnicodeData','DerivedAge','Blocks','Scripts','LineBreak')

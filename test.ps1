@@ -69,6 +69,7 @@ Import-Module "$scriptDir/unishell.psm1" -force
 test 'Get "X" codepoint' {
     $cp = Get-UniCodepoint 'X'
     ce 'X' $cp.Value
+    ce 'X' $cp.DisplayValue
     ce 0x0058 $cp.Codepoint
     ce 'U+0058' $cp.CodepointString
     ce 'LATIN CAPITAL LETTER X' $cp.Name
@@ -133,6 +134,7 @@ test 'Numeric codepoint' {
     ce 0x2181 $cp.Codepoint
     ce 'ROMAN NUMERAL FIVE THOUSAND' $cp.Name
     ce "$([char]0x2181)" $cp.Value
+    ce "$([char]0x2181)" $cp.DisplayValue
     ce 5000 $cp.NumericValue
 }
 
@@ -141,6 +143,7 @@ test 'Digit codepoint' {
     ce 0xA8D5 $cp.Codepoint
     ce 'SAURASHTRA DIGIT FIVE' $cp.Name
     ce "$([char]0xA8D5)" $cp.Value
+    ce "$([char]0xA8D5)" $cp.DisplayValue
     ce 5 $cp.DecimalDigitValue
     ce 5 $cp.DigitValue
     ce 5 $cp.NumericValue
@@ -150,6 +153,7 @@ test "Isolated unpaired high surrogate" {
     $cp = Get-UniCodepoint 0xD801
     ce 0xD801 $cp.Codepoint
     ce "$([char]0xD801)" $cp.Value
+    ce "$([char]0xD801)" $cp.DisplayValue
     ce 'High Surrogates' $cp.Block
     ce 'Non Private Use High Surrogate' $cp.Name
     ce 'SG - Surrogate' $cp.LineBreakClass
@@ -189,7 +193,6 @@ test "Jumbled isolated surrogates" {
     ce 8 $cp.length
     cae @(0xdc02,0xdc02,0x0020,0xd802,0xd802,0x0020,0xdc02,0xd802) $cp.Codepoint
 }
-
 # Get-UniCodepoint formatting tests
 
 test "Combiners for simple latin string" {
@@ -230,6 +233,81 @@ test "Combiners for combined chars after start, no chars after" {
     ce '└┬ ' $cp[1]._Combiner
     ce ' ├ ' $cp[2]._Combiner
     ce ' └ ' $cp[3]._Combiner
+}
+
+test "per-codepoint display values" {
+    $cp = Get-UniCodepoint 0x007f
+    ce ([char]0x2421) $cp.DisplayValue
+    
+    $cp = Get-UniCodepoint 0x83
+    ce 'NBH' $cp.DisplayValue
+    
+    $cp = Get-UniCodepoint 0x2066
+    ce 'LRI' $cp.DisplayValue
+    
+    $cp = Get-UniCodepoint 0xFFFB
+    ce 'IAT' $cp.DisplayValue
+    
+    $cp = Get-UniCodepoint 0xE0001
+    ce 'LANG TAG' $cp.DisplayValue
+    
+    $cp = Get-UniCodepoint 0xE0020
+    ce "TAG $([char]0x2420)" $cp.DisplayValue
+
+    $cp = Get-UniCodepoint 0xE007F
+    ce "TAG $([char]0x0018)" $cp.DisplayValue
+}
+
+test "c0 control display values" {
+    $cp = Get-UniCodepoint 0x00
+    ce ([char]0x2400) $cp.DisplayValue
+
+    $cp = Get-UniCodepoint 0x1f
+    ce ([char]0x241f) $cp.DisplayValue
+}
+
+test "tag control display values" {
+    $cp = Get-UniCodepoint 0xE0021
+    ce 'Tag !' $cp.DisplayValue
+
+    $cp = Get-UniCodepoint 0xE007E
+    ce 'Tag ~' $cp.DisplayValue
+}
+
+test "mongolian free variation selector display values" {
+    $cp = Get-UniCodepoint 0x180B
+    ce 'FVS1' $cp.DisplayValue
+
+    $cp = Get-UniCodepoint 0x180D
+    ce 'FVS3' $cp.DisplayValue
+}
+
+test "variation selector display values" {
+    $cp = Get-UniCodepoint 0xFE00
+    ce 'VS1' $cp.DisplayValue
+
+    $cp = Get-UniCodepoint 0xFE0F
+    ce 'VS16' $cp.DisplayValue
+}
+
+test "supplemental variation selector display values" {
+    $cp = Get-UniCodepoint 0xE0100
+    ce 'VS17' $cp.DisplayValue
+
+    $cp = Get-UniCodepoint 0xE01EF
+    ce 'VS256' $cp.DisplayValue
+}
+
+test "Display value used in table formatting" {
+    $output = Get-UniCodepoint 0x00 | Out-String
+    cm ([char]0x2400) $output
+    cnm ([char]0x00) $output
+}
+
+test "Display value used in list formatting" {
+    $output = Get-UniCodepoint 0x00  | fl | Out-String
+    cm "Value +: $([char]0x2400)" $output
+    cnm ([char]0x00) $output
 }
 
 test "Bytes formatted as space-delimited hex" {

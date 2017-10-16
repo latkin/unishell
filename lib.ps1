@@ -220,6 +220,7 @@ function getChar($codepoint) {
 
             $obj = [pscustomobject]@{
                     Value                     = $value
+                    DisplayValue             = displayValue $codepoint $value
                     Codepoint                 = $codepoint
                     CodepointString           = "U+$($codepoint.ToString('X4'))"
                     Name                      = $name
@@ -252,6 +253,7 @@ function getChar($codepoint) {
 
             $obj = [pscustomobject]@{
                     Value                     = $value
+                    DisplayValue             = displayValue $codepoint $value
                     Codepoint                 = $codepoint
                     CodepointString           = "U+$($codepoint.ToString('X4'))"
                     Name                      = 'Unassigned'

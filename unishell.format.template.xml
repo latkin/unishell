@@ -56,7 +56,7 @@
               </TableColumnItem>
               ##DEFAULT_ENCODING_TABLE_ITEMS##
               <TableColumnItem>
-                <PropertyName>Value</PropertyName>
+                <PropertyName>DisplayValue</PropertyName>
               </TableColumnItem>
             </TableColumnItems>
           </TableRowEntry>
@@ -72,7 +72,7 @@
         <ListEntries>
           <ListEntry>
             <ListItems>
-              <ListItem><PropertyName>Value</PropertyName></ListItem>
+              <ListItem><Label>Value</Label><ScriptBlock>$_.DisplayValue</ScriptBlock></ListItem>
               <ListItem><Label>Codepoint</Label><ScriptBlock>$_.CodepointString</ScriptBlock></ListItem>
               <ListItem><PropertyName>Name</PropertyName></ListItem>
               <ListItem><PropertyName>Block</PropertyName></ListItem>

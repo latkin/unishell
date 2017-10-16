@@ -28,6 +28,26 @@ function ce {
     }
 }
 
+function cm {
+    param(
+        $pattern,
+        $actual
+    )
+    if(-not ($actual -match $pattern)){
+        throw "Item did not match. [$actual] did not match pattern [$pattern]"
+    }
+}
+
+function cnm {
+    param(
+        $pattern,
+        $actual
+    )
+    if($actual -match $pattern){
+        throw "Item matched unexpectedly. [$actual] matched pattern [$pattern]"
+    }
+}
+
 function cae {
     param(
         [object[]] $expected,
@@ -44,7 +64,7 @@ function cae {
 
 Import-Module "$scriptDir/unishell.psm1" -force
 
-# Get-UniCodepoint tests
+# Get-UniCodepoint core tests
 
 test 'Get "X" codepoint' {
     $cp = Get-UniCodepoint 'X'
@@ -170,6 +190,73 @@ test "Jumbled isolated surrogates" {
     cae @(0xdc02,0xdc02,0x0020,0xd802,0xd802,0x0020,0xdc02,0xd802) $cp.Codepoint
 }
 
+# Get-UniCodepoint formatting tests
+
+test "Combiners for simple latin string" {
+    $cp = 'abc' | Get-UniCodepoint
+    ce '┌─ ' $cp[0]._Combiner
+    ce '├─ ' $cp[1]._Combiner
+    ce '└─ ' $cp[2]._Combiner
+}
+
+test "Combiners for simple latin single char" {
+    $cp = 'a' | Get-UniCodepoint
+    ce '── ' $cp._Combiner
+}
+
+test "Combiners for combined chars at start, more chars after" {
+    $cp = "a$([char]0x0301)$([char]0x0307)b" | Get-UniCodepoint
+    ce '┌┬ ' $cp[0]._Combiner
+    ce '│├ ' $cp[1]._Combiner
+    ce '│└ ' $cp[2]._Combiner
+}
+
+test "Combiners for combined chars at start, no chars after" {
+    $cp = "a$([char]0x0301)$([char]0x0307)" | Get-UniCodepoint
+    ce '─┬ ' $cp[0]._Combiner
+    ce ' ├ ' $cp[1]._Combiner
+    ce ' └ ' $cp[2]._Combiner
+}
+
+test "Combiners for combined chars after start, more chars after" {
+    $cp = "xa$([char]0x0301)$([char]0x0307)b" | Get-UniCodepoint
+    ce '├┬ ' $cp[1]._Combiner
+    ce '│├ ' $cp[2]._Combiner
+    ce '│└ ' $cp[3]._Combiner
+}
+
+test "Combiners for combined chars after start, no chars after" {
+    $cp = "xa$([char]0x0301)$([char]0x0307)" | Get-UniCodepoint
+    ce '└┬ ' $cp[1]._Combiner
+    ce ' ├ ' $cp[2]._Combiner
+    ce ' └ ' $cp[3]._Combiner
+}
+
+test "Bytes formatted as space-delimited hex" {
+    $output = "a$([char]0x0322)" | Get-UniCodepoint | Out-string
+    cm '\s61 00\s' $output
+    cm '\sCC A2\s+22 03\s' $output
+}
+
+test "Specified encodings are added to default table output" {
+    $output = "a$([char]0x0322)" | Get-UniCodepoint -encoding utf-32, utf-16BE | Out-string
+    cm '  61 00 00 00\s+00 61  ' $output
+    cm '  22 03 00 00 +03 22  ' $output
+}
+
+test "Specified encodings are added to default list output" {
+    $output = "a$([char]0x0322)" | Get-UniCodepoint -encoding utf-32, utf-16BE | fl | Out-string
+    cm '\nutf-32 +: 61 00 00 00\n' $output
+    cm '\nutf-16BE +: 00 61\n' $output
+}
+
+test "Not-specified encodings are not added to default list output" {
+    $output = "a$([char]0x0322)" | Get-UniCodepoint -encoding utf-32 | fl | Out-string
+    cnm 'utf-8' $output
+    cnm 'utf-16' $output
+}
+
+# module-level tests
 test "module import can download data files" {
     $files = @('UnicodeData','DerivedAge','Blocks','Scripts','LineBreak')
     $files |%{  Remove-Item "$scriptDir/$_.txt" -ea 0 }

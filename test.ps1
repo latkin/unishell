@@ -340,6 +340,54 @@ test "Hidden fields are not shown in default list output" {
     cnm '_OriginatingString' $output
 }
 
+# Get-UniBytes tests
+
+test "Pass a string, default encoding" {
+    $b = 'test' | Get-UniBytes
+    cae @(116, 101, 115, 116) $b
+}
+
+test "Pass a string, custom encoding" {
+    $b = 'test' | Get-UniBytes -E utf-16BE
+    cae @(0, 116, 0, 101, 0, 115, 0, 116) $b
+}
+
+test "Pass codepoints, default encoding" {
+    $b = 'test' | Get-UniCodepoint | Get-UniBytes
+    cae @(116, 101, 115, 116) $b
+}
+
+test "Pass codepoints, custom encoding" {
+    $b = 'test' | Get-UniCodepoint | Get-UniBytes -E utf-16BE
+    cae @(0, 116, 0, 101, 0, 115, 0, 116) $b
+}
+
+# Get-UniString tests
+
+test "Simple latin string, pass as bytes" {
+    $s = Get-UniString -Bytes 116, 101, 115, 116
+    ce 'test' $s
+}
+
+test "Simple latin string, pass a codepoints" {
+    $s = 116, 101, 115, 116 | Get-UniString
+    ce 'test' $s
+}
+
+test "Simple latin string, pass as bytes with custom encoding" {
+    $s = 116, 0, 101, 0, 115, 0, 116, 0 | Get-UniString -enc utf-16
+    ce 'test' $s
+}
+
+test "Codepoints larger than byte max" {
+    $s = 109, 101, 104, 32, 129335 | Get-UniString
+    ce 'meh 🤷' $s
+
+    $s = 'meh 🤷' | Get-UniCodepoint | Get-UniString
+    ce 'meh 🤷' $s
+}
+
+
 # module-level tests
 test "module import can download data files" {
     $files = @('UnicodeData','DerivedAge','Blocks','Scripts','LineBreak')

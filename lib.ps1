@@ -197,18 +197,23 @@ function addEncodings($codepointObj) {
     $codepointObj | Add-Member -NotePropertyMembers $props -Force -PassThru
 }
 
+function getValue($codepoint) {
+    if (($codepoint -lt 0) -or ($codepoint -gt 0x10ffff)) {
+        Write-Error "$codepoint (0x$($codepoint.ToString('X4'))) is not a valid codepoint"
+        $null
+    }
+    elseif (($codepoint -lt 55296) -or ($codepoint -gt 57343)) {
+        [char]::ConvertFromUtf32($codepoint)
+    }
+    else {
+        [char] $codepoint
+    }
+}
+
 function getChar($codepoint) {
     if (-not $script:charData.ContainsKey($codepoint)) {
-        if (($codepoint -lt 0) -or ($codepoint -gt 0x10ffff)) {
-            Write-Error "$codepoint (0x$($codepoint.ToString('X4'))) is not a valid codepoint"
-            return
-        }
-        $value = if (($codepoint -lt 55296) -or ($codepoint -gt 57343)) {
-            [char]::ConvertFromUtf32($codepoint)
-        }
-        else {
-            [char] $codepoint
-        }
+        $value = getValue $codepoint
+        if($value -eq $null) { return }
         $fields = $script:stubData[$codepoint]
 
         if ($fields) {

@@ -150,4 +150,10 @@ if (Get-Command 'Register-ArgumentCompleter' -ea 0) {
     }
 }
 
-Export-ModuleMember -Function 'Get-UniCodepoint','Get-UniBytes','Get-UniString'
+New-Alias unicode Get-UniCodepoint
+New-Alias unibytes Get-UniBytes
+New-Alias unistring Get-UniString
+
+Export-ModuleMember `
+    -Function 'Get-UniCodepoint','Get-UniBytes','Get-UniString' `
+    -Alias 'unicode','unibytes','unistring'

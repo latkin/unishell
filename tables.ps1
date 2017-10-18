@@ -1,3 +1,5 @@
+# various tables and functions which are primarily just lists of magic values
+
 $generalCategoryMappings = @{
     'Lu' = 'Lu - Letter, Uppercase'
     'Ll' = 'Ll - Letter, Lowercase'
@@ -214,6 +216,8 @@ $displayValues = @{
     0xE007F = "TAG $([char]0x0018)"
 }
 
+# generates the "display value", i.e. user-friendly/safe display string
+# for various control/invisible codepoints
 function displayValue($codepoint, $value){
     if($displayValues.ContainsKey($codepoint)){
         $displayValues[$codepoint]

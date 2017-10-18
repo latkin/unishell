@@ -1,4 +1,4 @@
-Set-StrictMode -Version 2
+﻿Set-StrictMode -Version 2
 $errorActionPreference = 'Stop'
 
 $scriptDir = Split-Path $psCommandPath
@@ -68,8 +68,8 @@ Import-Module "$scriptDir/unishell.psm1" -force
 
 test 'Get "X" codepoint' {
     $cp = Get-UniCodepoint 'X'
+    ce 'X' $cp.RawValue
     ce 'X' $cp.Value
-    ce 'X' $cp.DisplayValue
     ce 0x0058 $cp.Codepoint
     ce 'U+0058' $cp.CodepointString
     ce 'LATIN CAPITAL LETTER X' $cp.Name
@@ -133,8 +133,8 @@ test 'Numeric codepoint' {
     $cp = Get-UniCodepoint 0x2181
     ce 0x2181 $cp.Codepoint
     ce 'ROMAN NUMERAL FIVE THOUSAND' $cp.Name
+    ce "$([char]0x2181)" $cp.RawValue
     ce "$([char]0x2181)" $cp.Value
-    ce "$([char]0x2181)" $cp.DisplayValue
     ce 5000 $cp.NumericValue
 }
 
@@ -142,8 +142,8 @@ test 'Digit codepoint' {
     $cp = Get-UniCodepoint 0xA8D5
     ce 0xA8D5 $cp.Codepoint
     ce 'SAURASHTRA DIGIT FIVE' $cp.Name
+    ce "$([char]0xA8D5)" $cp.RawValue
     ce "$([char]0xA8D5)" $cp.Value
-    ce "$([char]0xA8D5)" $cp.DisplayValue
     ce 5 $cp.DecimalDigitValue
     ce 5 $cp.DigitValue
     ce 5 $cp.NumericValue
@@ -152,8 +152,8 @@ test 'Digit codepoint' {
 test "Isolated unpaired high surrogate" {
     $cp = Get-UniCodepoint 0xD801
     ce 0xD801 $cp.Codepoint
+    ce "$([char]0xD801)" $cp.RawValue
     ce "$([char]0xD801)" $cp.Value
-    ce "$([char]0xD801)" $cp.DisplayValue
     ce 'High Surrogates' $cp.Block
     ce 'Non Private Use High Surrogate' $cp.Name
     ce 'SG - Surrogate' $cp.LineBreakClass
@@ -171,7 +171,7 @@ test "Interpolated unpaired high surrogate" {
 test "Isolated unpaired low surrogate" {
     $cp = Get-UniCodepoint 0xDC01
     ce 0xDC01 $cp.Codepoint
-    ce "$([char]0xDC01)" $cp.Value
+    ce "$([char]0xDC01)" $cp.RawValue
     ce 'Low Surrogates' $cp.Block
     ce 'Low Surrogate' $cp.Name
     ce 'SG - Surrogate' $cp.LineBreakClass
@@ -197,105 +197,105 @@ test "Jumbled isolated surrogates" {
 
 test "Combiners for simple latin string" {
     $cp = 'abc' | Get-UniCodepoint
-    ce '┌─ ' $cp[0]._Combiner
-    ce '├─ ' $cp[1]._Combiner
-    ce '└─ ' $cp[2]._Combiner
+    ce '┌─' $cp[0]._Combiner
+    ce '├─' $cp[1]._Combiner
+    ce '└─' $cp[2]._Combiner
 }
 
 test "Combiners for simple latin single char" {
     $cp = 'a' | Get-UniCodepoint
-    ce '── ' $cp._Combiner
+    ce '──' $cp._Combiner
 }
 
 test "Combiners for combined chars at start, more chars after" {
     $cp = "a$([char]0x0301)$([char]0x0307)b" | Get-UniCodepoint
-    ce '┌┬ ' $cp[0]._Combiner
-    ce '│├ ' $cp[1]._Combiner
-    ce '│└ ' $cp[2]._Combiner
+    ce '┌┬' $cp[0]._Combiner
+    ce '│├' $cp[1]._Combiner
+    ce '│└' $cp[2]._Combiner
 }
 
 test "Combiners for combined chars at start, no chars after" {
     $cp = "a$([char]0x0301)$([char]0x0307)" | Get-UniCodepoint
-    ce '─┬ ' $cp[0]._Combiner
-    ce ' ├ ' $cp[1]._Combiner
-    ce ' └ ' $cp[2]._Combiner
+    ce '─┬' $cp[0]._Combiner
+    ce ' ├' $cp[1]._Combiner
+    ce ' └' $cp[2]._Combiner
 }
 
 test "Combiners for combined chars after start, more chars after" {
     $cp = "xa$([char]0x0301)$([char]0x0307)b" | Get-UniCodepoint
-    ce '├┬ ' $cp[1]._Combiner
-    ce '│├ ' $cp[2]._Combiner
-    ce '│└ ' $cp[3]._Combiner
+    ce '├┬' $cp[1]._Combiner
+    ce '│├' $cp[2]._Combiner
+    ce '│└' $cp[3]._Combiner
 }
 
 test "Combiners for combined chars after start, no chars after" {
     $cp = "xa$([char]0x0301)$([char]0x0307)" | Get-UniCodepoint
-    ce '└┬ ' $cp[1]._Combiner
-    ce ' ├ ' $cp[2]._Combiner
-    ce ' └ ' $cp[3]._Combiner
+    ce '└┬' $cp[1]._Combiner
+    ce ' ├' $cp[2]._Combiner
+    ce ' └' $cp[3]._Combiner
 }
 
 test "per-codepoint display values" {
     $cp = Get-UniCodepoint 0x007f
-    ce ([char]0x2421) $cp.DisplayValue
+    ce ([char]0x2421) $cp.Value
     
     $cp = Get-UniCodepoint 0x83
-    ce 'NBH' $cp.DisplayValue
+    ce 'NBH' $cp.Value
     
     $cp = Get-UniCodepoint 0x2066
-    ce 'LRI' $cp.DisplayValue
+    ce 'LRI' $cp.Value
     
     $cp = Get-UniCodepoint 0xFFFB
-    ce 'IAT' $cp.DisplayValue
+    ce 'IAT' $cp.Value
     
     $cp = Get-UniCodepoint 0xE0001
-    ce 'LANG TAG' $cp.DisplayValue
+    ce 'LANG TAG' $cp.Value
     
     $cp = Get-UniCodepoint 0xE0020
-    ce "TAG $([char]0x2420)" $cp.DisplayValue
+    ce "TAG $([char]0x2420)" $cp.Value
 
     $cp = Get-UniCodepoint 0xE007F
-    ce "TAG $([char]0x0018)" $cp.DisplayValue
+    ce "TAG $([char]0x0018)" $cp.Value
 }
 
 test "c0 control display values" {
     $cp = Get-UniCodepoint 0x00
-    ce ([char]0x2400) $cp.DisplayValue
+    ce ([char]0x2400) $cp.Value
 
     $cp = Get-UniCodepoint 0x1f
-    ce ([char]0x241f) $cp.DisplayValue
+    ce ([char]0x241f) $cp.Value
 }
 
 test "tag control display values" {
     $cp = Get-UniCodepoint 0xE0021
-    ce 'Tag !' $cp.DisplayValue
+    ce 'Tag !' $cp.Value
 
     $cp = Get-UniCodepoint 0xE007E
-    ce 'Tag ~' $cp.DisplayValue
+    ce 'Tag ~' $cp.Value
 }
 
 test "mongolian free variation selector display values" {
     $cp = Get-UniCodepoint 0x180B
-    ce 'FVS1' $cp.DisplayValue
+    ce 'FVS1' $cp.Value
 
     $cp = Get-UniCodepoint 0x180D
-    ce 'FVS3' $cp.DisplayValue
+    ce 'FVS3' $cp.Value
 }
 
 test "variation selector display values" {
     $cp = Get-UniCodepoint 0xFE00
-    ce 'VS1' $cp.DisplayValue
+    ce 'VS1' $cp.Value
 
     $cp = Get-UniCodepoint 0xFE0F
-    ce 'VS16' $cp.DisplayValue
+    ce 'VS16' $cp.Value
 }
 
 test "supplemental variation selector display values" {
     $cp = Get-UniCodepoint 0xE0100
-    ce 'VS17' $cp.DisplayValue
+    ce 'VS17' $cp.Value
 
     $cp = Get-UniCodepoint 0xE01EF
-    ce 'VS256' $cp.DisplayValue
+    ce 'VS256' $cp.Value
 }
 
 test "Display value used in table formatting" {
@@ -324,8 +324,8 @@ test "Specified encodings are added to default table output" {
 
 test "Specified encodings are added to default list output" {
     $output = "a$([char]0x0322)" | Get-UniCodepoint -encoding utf-32, utf-16BE | fl | Out-string
-    cm '\nutf-32 +: 61 00 00 00\n' $output
-    cm '\nutf-16BE +: 00 61\n' $output
+    cm '\r?\nutf-32 +: 61 00 00 00\r?\n' $output
+    cm '\r?\nutf-16BE +: 00 61\r?\n' $output
 }
 
 test "Not-specified encodings are not added to default list output" {
@@ -340,25 +340,25 @@ test "Hidden fields are not shown in default list output" {
     cnm '_OriginatingString' $output
 }
 
-# Get-UniBytes tests
+# Get-UniByte tests
 
 test "Pass a string, default encoding" {
-    $b = 'test' | Get-UniBytes
+    $b = 'test' | Get-UniByte
     cae @(116, 101, 115, 116) $b
 }
 
 test "Pass a string, custom encoding" {
-    $b = 'test' | Get-UniBytes -E utf-16BE
+    $b = 'test' | Get-UniByte -E utf-16BE
     cae @(0, 116, 0, 101, 0, 115, 0, 116) $b
 }
 
 test "Pass codepoints, default encoding" {
-    $b = 'test' | Get-UniCodepoint | Get-UniBytes
+    $b = 'test' | Get-UniCodepoint | Get-UniByte
     cae @(116, 101, 115, 116) $b
 }
 
 test "Pass codepoints, custom encoding" {
-    $b = 'test' | Get-UniCodepoint | Get-UniBytes -E utf-16BE
+    $b = 'test' | Get-UniCodepoint | Get-UniByte -E utf-16BE
     cae @(0, 116, 0, 101, 0, 115, 0, 116) $b
 }
 

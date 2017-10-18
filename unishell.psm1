@@ -141,7 +141,7 @@ function Get-UniCodepoint {
         if ($encoding) {
             $displayEncodings = $encoding | % { $allEncodings.WebName -like $_ } | Select-Object -Unique
             if (-not $displayEncodings) {
-                Write-Warning "$encoding does not match any available encodings"
+                Write-Error "The encoding '$encoding' does not match any available encoding"
                 return
             }
             else {
@@ -197,7 +197,7 @@ UTF-8 is used by default.
 
 .EXAMPLE
 # get the encoded bytes of a simple Latin string
-Get-UniBytes 'Sweet'
+Get-UniByte 'Sweet'
 
 83
 119
@@ -207,7 +207,7 @@ Get-UniBytes 'Sweet'
 
 .EXAMPLE
 # get the UTF-16 bytes of the Mandarin word 筷子
-'筷子' | Get-UniBytes -Encoding utf-16
+'筷子' | Get-UniByte -Encoding utf-16
 
 119
 123
@@ -216,39 +216,40 @@ Get-UniBytes 'Sweet'
 
 .EXAMPLE
 # get the bytes of an integer codepoint
-0x1F937 | Get-UniBytes -Encoding utf-32
+0x1F937 | Get-UniByte -Encoding utf-32
 
 55
 249
 1
 0
 #>
-function Get-UniBytes {
+function Get-UniByte {
     param(
-        [Parameter(Mandatory=$true, Position = 0, ValueFromPipeline = $true, ParameterSetName = 'string')]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ParameterSetName = 'string')]
         [string[]]$InputString,
-        [Parameter(Mandatory=$true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'codepoint')]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'codepoint')]
         [int[]] $Codepoint,
         [string] $Encoding = 'utf-8'
     )
+
     begin {
         $encodingImpl = $allEncodings |? WebName -eq $Encoding
-        if(-not $encodingImpl){
-            Write-Error "Encoding $encoding not available"
+        if (-not $encodingImpl) {
+            Write-Error "The encoding '$encoding' does not match any available encoding"
             return
         }
     }
+
     process {
-        if($PSCmdlet.ParameterSetName -eq 'string'){
-            foreach($s in $inputString){
-                if($encodingImpl){
-                    $encodingImpl.GetBytes($s)
-                }
+        if ($PSCmdlet.ParameterSetName -eq 'string') {
+            foreach ($s in $inputString) {
+                $encodingImpl.GetBytes($s)
             }
-        } elseif ($PSCmdlet.ParameterSetName -eq 'codepoint') {
-            foreach($c in $codepoint){
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'codepoint') {
+            foreach ($c in $codepoint) {
                 $value = getValue $c
-                if($value -eq $null){ return }
+                if ($value -eq $null) { return }
 
                 $encodingImpl.GetBytes($value)
             }
@@ -300,55 +301,62 @@ meh 🤷
 
 .EXAMPLE
 # discover conspiracies!
-'畂桳栠摩琠敨映捡獴' | Get-UniBytes -Encoding utf-16 | Get-UniString -Encoding utf-8
+'畂桳栠摩琠敨映捡獴' | Get-UniByte -Encoding utf-16 | Get-UniString -Encoding utf-8
 
 Bush hid the facts
 #>
 function Get-UniString {
     [CmdletBinding(DefaultParameterSetName = 'bytes')]
     param(
-        [Parameter(Mandatory=$true, Position = 0, ValueFromPipeline = $true, ParameterSetName = 'bytes')]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ParameterSetName = 'bytes')]
         [byte[]]$Bytes,
         [Parameter(ParameterSetName = 'bytes')]
         [string] $Encoding = 'utf-8',
-        [Parameter(Mandatory=$true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'codepoint')]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'codepoint')]
         [int[]] $Codepoint
     )
+
     begin {
         $byteBuffer = New-Object 'System.Collections.Generic.List[byte]'
         $sb = [System.Text.StringBuilder]::new()
         $encodingImpl = $allEncodings |? WebName -eq $Encoding
-        if((-not $encodingImpl) -and ($psCmdlet.ParameterSetName -eq 'bytes')){
-            Write-Error "Encoding $encoding not available"
+        if ((-not $encodingImpl) -and ($psCmdlet.ParameterSetName -eq 'bytes')) {
+            Write-Error "The encoding '$encoding' does not match any available encoding"
             return
         }
     }
+
     process {
-        if($PSCmdlet.ParameterSetName -eq 'bytes'){
-            foreach($b in $bytes) {
+        if ($PSCmdlet.ParameterSetName -eq 'bytes') {
+            foreach ($b in $bytes) {
                 $byteBuffer.Add($b)
             }
-        } elseif($PSCmdlet.ParameterSetName -eq 'codepoint'){
-            foreach($c in $codepoint) {
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'codepoint') {
+            foreach ($c in $codepoint) {
                 $value = getValue $c
-                if($value -eq $null) { return }
+                if ($value -eq $null) { return }
                 $null = $sb.Append($value)
             }
         }
     }
+
     end {
-        if($PSCmdlet.ParameterSetName -eq 'bytes'){
+        if ($PSCmdlet.ParameterSetName -eq 'bytes') {
             $encodingImpl.GetString($byteBuffer.ToArray())
-        } elseif($PSCmdlet.ParameterSetName -eq 'codepoint'){
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'codepoint') {
             $sb.ToString()
         }
     }
 }
 
+# tab completion through all available encodings for 'Encoding' arg on all relevant cmdlets
 if (Get-Command 'Register-ArgumentCompleter' -ea 0) {
-    Register-ArgumentCompleter -CommandName 'Get-UniCodepoint','Get-UniBytes','Get-UniString' -ParameterName 'Encoding' -ScriptBlock {
+    Register-ArgumentCompleter -CommandName 'Get-UniCodepoint', 'Get-UniByte', 'Get-UniString' -ParameterName 'Encoding' -ScriptBlock {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $boundParameters)
 
+        # maintain quotes if user has added them
         $quote = $null
         if ($wordToComplete -match "^(`"|')") {
             $quote = $matches[1]
@@ -367,9 +375,9 @@ if (Get-Command 'Register-ArgumentCompleter' -ea 0) {
 }
 
 New-Alias unicode Get-UniCodepoint
-New-Alias unibytes Get-UniBytes
+New-Alias unibyte Get-UniByte
 New-Alias unistring Get-UniString
 
 Export-ModuleMember `
-    -Function 'Get-UniCodepoint','Get-UniBytes','Get-UniString' `
-    -Alias 'unicode','unibytes','unistring'
+    -Function 'Get-UniCodepoint','Get-UniByte','Get-UniString' `
+    -Alias 'unicode','unibyte','unistring'

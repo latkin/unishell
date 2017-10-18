@@ -49,14 +49,14 @@
             <TableColumnItems>
               <TableColumnItem>
                 <Alignment>Right</Alignment>
-                <ScriptBlock>if($_.PSObject.Members['_Combiner']){$_._Combiner + $_.CodepointString.PadLeft(8)} else { $_.CodepointString }</ScriptBlock>
+                <ScriptBlock>if($_.PSObject.Members['_Combiner']){$_._Combiner + $_.CodepointString.PadLeft(9)} else { $_.CodepointString }</ScriptBlock>
               </TableColumnItem>
               <TableColumnItem>
                 <PropertyName>Name</PropertyName>
               </TableColumnItem>
               ##DEFAULT_ENCODING_TABLE_ITEMS##
               <TableColumnItem>
-                <PropertyName>DisplayValue</PropertyName>
+                <PropertyName>Value</PropertyName>
               </TableColumnItem>
             </TableColumnItems>
           </TableRowEntry>
@@ -72,7 +72,7 @@
         <ListEntries>
           <ListEntry>
             <ListItems>
-              <ListItem><Label>Value</Label><ScriptBlock>$_.DisplayValue</ScriptBlock></ListItem>
+              <ListItem><PropertyName>Value</PropertyName></ListItem>
               <ListItem><Label>Codepoint</Label><ScriptBlock>$_.CodepointString</ScriptBlock></ListItem>
               <ListItem><PropertyName>Name</PropertyName></ListItem>
               <ListItem><PropertyName>Block</PropertyName></ListItem>

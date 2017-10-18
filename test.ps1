@@ -62,7 +62,7 @@ function cae {
     }
 }
 
-Import-Module "$scriptDir/unishell.psm1" -force
+Import-Module "$scriptDir/UniShell.psd1" -force
 
 # Get-UniCodepoint core tests
 
@@ -393,7 +393,7 @@ test "module import can download data files" {
     $files = @('UnicodeData','DerivedAge','Blocks','Scripts','LineBreak')
     $files |%{  Remove-Item "$scriptDir/$_.txt" -ea 0 }
 
-    Import-Module "$scriptDir/unishell.psm1" -force -ArgumentList ($scriptDir, @('utf-8'), $true)
+    Import-Module "$scriptDir/UniShell.psd1" -force -ArgumentList ($scriptDir, @('utf-8'), $true)
 
     $files |%{ 
         if(-not (Test-path "$scriptDir/$_.txt")){

@@ -54,9 +54,9 @@ Dude
 
 .EXAMPLE
 # display codepoints of a more interesting string
- '(͡° ͜ʖ ͡°)' | Get-UniCodepoint
+'(͡° ͜ʖ ͡°)' | Get-UniCodepoint
 
- (͡° ͜ʖ ͡°)
+(͡° ͜ʖ ͡°)
 
   Codepoint Name                                      utf-8       utf-16 Value
   --------- ----                                      -----       ------ -----

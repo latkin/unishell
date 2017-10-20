@@ -211,7 +211,7 @@ function addEncodings($codepointObj) {
     foreach ($enc in $allEncodings) {
         $name = $enc.WebName
         if (-not $props.ContainsKey($name)) {
-            $bytes = if ($codepointObj.Value -eq $null) { , @() } else { $enc.GetBytes($codepointObj.Value) }
+            $bytes = if ($codepointObj.RawValue -eq $null) { , @() } else { $enc.GetBytes($codepointObj.RawValue) }
             $props.Add($name, [byte[]]$bytes)
         }
     }

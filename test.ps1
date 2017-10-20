@@ -238,6 +238,7 @@ test "Combiners for combined chars after start, no chars after" {
 test "per-codepoint display values" {
     $cp = Get-UniCodepoint 0x007f
     ce ([char]0x2421) $cp.Value
+    cae @(0x7f, 0x00) $cp.'utf-16'
     
     $cp = Get-UniCodepoint 0x83
     ce 'NBH' $cp.Value

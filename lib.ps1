@@ -29,7 +29,7 @@ if ($missingFiles.Length -ne 0) {
     }
     else {
         Write-Error $errorMessage
-        exit
+        exit 1
     }
 }
 

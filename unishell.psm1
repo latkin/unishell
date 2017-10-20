@@ -11,6 +11,7 @@ if (-not $dataFilesDirectory) {
 }
 
 . $scriptDir/lib.ps1 -datafilesdirectory $dataFilesDirectory
+if (-not $?) { exit }
 
 <#
 .SYNOPSIS

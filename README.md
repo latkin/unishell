@@ -48,22 +48,22 @@ dude, swẽêt
 └─   U+0074 LATIN SMALL LETTER T                           74        74 00   t
 ```
 ```
-> 'குட்மானிங்' | unicode
+> 'குட்மானிங்' | unicode -encoding utf-8,utf-32BE
 
 குட்மானிங்
 
-  Codepoint Name                       utf-8       utf-16 Value
-  --------- ----                       -----       ------ -----
-┌┬   U+0B95 TAMIL LETTER KA         E0 AE 95        95 0B   க
-│└   U+0BC1 TAMIL VOWEL SIGN U      E0 AF 81        C1 0B   ு
-├┬   U+0B9F TAMIL LETTER TTA        E0 AE 9F        9F 0B   ட
-│└   U+0BCD TAMIL SIGN VIRAMA       E0 AF 8D        CD 0B   ்
-├┬   U+0BAE TAMIL LETTER MA         E0 AE AE        AE 0B   ம
-│└   U+0BBE TAMIL VOWEL SIGN AA     E0 AE BE        BE 0B   ா
-├┬   U+0BA9 TAMIL LETTER NNNA       E0 AE A9        A9 0B   ன
-│└   U+0BBF TAMIL VOWEL SIGN I      E0 AE BF        BF 0B   ி
-└┬   U+0B99 TAMIL LETTER NGA        E0 AE 99        99 0B   ங
- └   U+0BCD TAMIL SIGN VIRAMA       E0 AF 8D        CD 0B   ்
+  Codepoint Name                       utf-8     utf-32BE Value
+  --------- ----                       -----     -------- -----
+┌┬   U+0B95 TAMIL LETTER KA         E0 AE 95  00 00 0B 95   க
+│└   U+0BC1 TAMIL VOWEL SIGN U      E0 AF 81  00 00 0B C1   ு
+├┬   U+0B9F TAMIL LETTER TTA        E0 AE 9F  00 00 0B 9F   ட
+│└   U+0BCD TAMIL SIGN VIRAMA       E0 AF 8D  00 00 0B CD   ்
+├┬   U+0BAE TAMIL LETTER MA         E0 AE AE  00 00 0B AE   ம
+│└   U+0BBE TAMIL VOWEL SIGN AA     E0 AE BE  00 00 0B BE   ா
+├┬   U+0BA9 TAMIL LETTER NNNA       E0 AE A9  00 00 0B A9   ன
+│└   U+0BBF TAMIL VOWEL SIGN I      E0 AE BF  00 00 0B BF   ி
+└┬   U+0B99 TAMIL LETTER NGA        E0 AE 99  00 00 0B 99   ங
+ └   U+0BCD TAMIL SIGN VIRAMA       E0 AF 8D  00 00 0B CD   ்
 ```
 ```
 > 'U̶͔͑n̴̜̐i̷̢̎Ṣ̴́h̴̺̽e̵͙̕ļ̴̆l̶͔̏' | unicode
@@ -224,6 +224,8 @@ Bush hid the facts
 The built-in terminals in Windows have poor support for Unicode strings.
 For best results, use an alternative terminal such as [ConEmu](https://conemu.github.io/),
 [Visual Studio Code](https://code.visualstudio.com/), or others.
+
+![Windows shells](winshells.PNG)
 
 **For non-Windows users**
 

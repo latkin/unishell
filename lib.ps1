@@ -111,7 +111,7 @@ function resolveEncodings {
         }
 
         # No such luck
-        Write-Error "The encodingxx '$name' does not match any available encoding"
+        Write-Error "The encoding '$name' does not match any available encoding"
 
     } | Select-Object -Unique
 }

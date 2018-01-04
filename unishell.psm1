@@ -164,15 +164,9 @@ function Get-UniCodepoint {
         loadStub
         $changedFormatting = $false
         if ($encoding) {
-            $displayEncodings = $encoding | % { $allEncodings.WebName -like $_ } | Select-Object -Unique
-            if (-not $displayEncodings) {
-                Write-Error "The encoding '$encoding' does not match any available encoding"
-                return
-            }
-            else {
-                updateFormatting $displayEncodings
-                $changedFormatting = $true
-            }
+            $displayEncodings = resolveEncodings $encoding -ErrorAction Stop
+            updateFormatting $displayEncodings
+            $changedFormatting = $true
         }
 
         if ($noEncoding -or $($null -ne $encoding -and $encoding.Length -eq 0)) {
@@ -264,11 +258,7 @@ function Get-UniByte {
     )
 
     begin {
-        $encodingImpl = $allEncodings |? WebName -eq $Encoding
-        if (-not $encodingImpl) {
-            Write-Error "The encoding '$encoding' does not match any available encoding"
-            return
-        }
+        $encodingImpl = resolveEncodings $Encoding -ErrorAction Stop
     }
 
     process {
@@ -350,10 +340,8 @@ function Get-UniString {
     begin {
         $byteBuffer = New-Object 'System.Collections.Generic.List[byte]'
         $sb = [System.Text.StringBuilder]::new()
-        $encodingImpl = $allEncodings |? WebName -eq $Encoding
-        if ((-not $encodingImpl) -and ($psCmdlet.ParameterSetName -eq 'bytes')) {
-            Write-Error "The encoding '$encoding' does not match any available encoding"
-            return
+        if ($Encoding) {
+            $encodingImpl = resolveEncodings $Encoding
         }
     }
 
@@ -395,7 +383,7 @@ if (Get-Command 'Register-ArgumentCompleter' -ea 0) {
         }
         $wordToComplete = $wordToComplete -replace "(`"|')+$"
 
-        $script:allEncodings |? WebName -like "$wordToComplete*" | % WebName | % {
+        resolveEncodings "$wordToComplete*" | ForEach-Object WebName | ForEach-Object {
             $localQuote =
                 if ($quote) { $quote }
                 elseif ($_ -match '\s') { "'" }

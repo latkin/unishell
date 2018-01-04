@@ -164,7 +164,7 @@ function Get-UniCodepoint {
         loadStub
         $changedFormatting = $false
         if ($encoding) {
-            $displayEncodings = resolveEncodings $encoding -ErrorAction Stop
+            $displayEncodings = resolveEncodings $encoding -ErrorAction Stop | ForEach-Object WebName
             updateFormatting $displayEncodings
             $changedFormatting = $true
         }
@@ -316,7 +316,8 @@ Sweet
 
 .EXAMPLE
 # combine codepoints to form a string
-0x6d,0x65,0x68,0x20,0x1f937 | Get-UniString
+Get-UniString -Codepoint 0x6d,0x65,0x68,0x20,0x1f937
+0x6d,0x65,0x68,0x20,0x1f937 | Get-UniString -Codepoint {$_}
 
 meh 🤷
 

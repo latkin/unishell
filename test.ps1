@@ -18,6 +18,7 @@ function test {
     Write-Host -ForegroundColor Green "[$name] passed"
 }
 
+# compare EQUAL
 function ce {
     param(
         $expected,
@@ -28,6 +29,7 @@ function ce {
     }
 }
 
+# compare MATCHES
 function cm {
     param(
         $pattern,
@@ -38,6 +40,7 @@ function cm {
     }
 }
 
+# compare NOT MATCHES
 function cnm {
     param(
         $pattern,
@@ -48,6 +51,7 @@ function cnm {
     }
 }
 
+# compare ALL EQUAL
 function cae {
     param(
         [object[]] $expected,
@@ -321,6 +325,16 @@ test "Specified encodings are added to default table output" {
     $output = "a$([char]0x0322)" | Get-UniCodepoint -encoding utf-32, utf-16BE | Out-string
     cm '  61 00 00 00\s+00 61  ' $output
     cm '  22 03 00 00 +03 22  ' $output
+}
+
+test "No encodings shown in table output with -NoEncoding" {
+    $output = "X" | Get-UniCodepoint -noencoding | Out-string
+    cm 'LETTER X.*X.*[\r\n]' $output
+}
+
+test "No encodings shown in table output with -Encoding @()" {
+    $output = "Y" | Get-UniCodepoint -Encoding @() | Out-string
+    cm 'LETTER Y.*Y.*[\r\n]' $output
 }
 
 test "Specified encodings are added to default list output" {

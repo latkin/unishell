@@ -40,6 +40,9 @@ By default, utf-8 and utf-16 encodings are displayed. Note that all encodings
 are always available on the returned items, even if they are not displayed by default.
 Use "Format-List *" to force-display all encodings.
 
+.PARAMETER NoEncoding
+If specified, no encodings will be displayed in the cmdlet output.
+
 .EXAMPLE
 # display codepoints of a simple Latin string
 Get-UniCodepoint 'Dude'
@@ -100,6 +103,20 @@ señor
 └─   U+0072 LATIN SMALL LETTER R                      72        00 72           72   r  
 
 .EXAMPLE
+# display no encodings
+'señor' | Get-UniCodepoint -NoEncoding
+
+señor
+
+  Codepoint Name                            Value
+  --------- ----                            -----
+┌─   U+0073 LATIN SMALL LETTER S              s
+├─   U+0065 LATIN SMALL LETTER E              e
+├─   U+00F1 LATIN SMALL LETTER N WITH TILDE   ñ
+├─   U+006F LATIN SMALL LETTER O              o
+└─   U+0072 LATIN SMALL LETTER R              r
+
+.EXAMPLE
 # view full details of a codepoint by viewing in list format
 0x0414 | Get-UniCodepoint | Format-List
 
@@ -127,13 +144,20 @@ utf-8                     : D0 94
 utf-16                    : 14 04
 #>
 function Get-UniCodepoint {
-    [CmdletBinding(DefaultParameterSetName = 'string')]
+    [CmdletBinding(DefaultParameterSetName = 'string-encoding')]
     param(
-        [Parameter(Mandatory = $true , ParameterSetName = 'string', Position = 0, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true , ParameterSetName = 'string-encoding', Position = 0, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true , ParameterSetName = 'string-noencoding', Position = 0, ValueFromPipeline = $true)]
         [string[]] $InputString,
-        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint', Position = 0, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint-encoding', Position = 0, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint-noencoding', Position = 0, ValueFromPipeline = $true)]
         [int[]] $Codepoint,
-        [string[]] $Encoding
+        [Parameter(ParameterSetName = 'string-encoding')]
+        [Parameter(ParameterSetName = 'codepoint-encoding')]
+        [string[]] $Encoding,
+        [Parameter(Mandatory = $true, ParameterSetName = 'string-noencoding')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'codepoint-noencoding')]
+        [switch] $NoEncoding
     )
 
     begin {
@@ -150,15 +174,21 @@ function Get-UniCodepoint {
                 $changedFormatting = $true
             }
         }
+
+        if ($noEncoding -or $($null -ne $encoding -and $encoding.Length -eq 0)) {
+            $displayEncodings = @()
+            updateFormatting $displayEncodings
+            $changedFormatting = $true
+        }
     }
 
     process {
-        if ($psCmdlet.ParameterSetName -eq 'codepoint') {
+        if ($psCmdlet.ParameterSetName -match 'codepoint') {
             foreach ($c in $codepoint) {
                 getChar $c
             }
         }
-        elseif ($psCmdlet.ParameterSetName -eq 'string') {
+        elseif ($psCmdlet.ParameterSetName -match 'string') {
             foreach ($s in $inputString) {
                 expandString $s
             }

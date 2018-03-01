@@ -35,6 +35,86 @@ if ($missingFiles.Length -ne 0) {
 
 # all encodings supported by the running .NET framework
 $allEncodings = [System.Text.Encoding]::GetEncodings().GetEncoding()
+$allEncodingMap = @{};
+$allEncodings | ForEach-Object { $allEncodingMap[$_.WebName] = $_ }
+
+function resolveEncodings {
+    [CmdletBinding()]
+    [OutputType([System.Text.Encoding[]])]
+    param
+    (
+        [ValidateNotNullOrEmpty()]
+        [string[]] $Encoding
+    )
+
+    $Encoding | ForEach-Object {
+        # Do a direct name lookup first
+        if ($result = $allEncodingMap[$_]) {
+            return $result
+        }
+
+        # Try parsing as the FileSystemCmdletProviderEncoding enum.
+        # If $PSDefaultParameterValues contains a default for the Encoding parameter, it may contain one of these, and these don't neatly map to WebName.
+        # @see https://stackoverflow.com/a/40098904/17152
+        # @see https://docs.microsoft.com/en-us/dotnet/api/microsoft.powershell.commands.filesystemcmdletproviderencoding
+        switch ($_) {
+            'Unknown' {
+                # Unknown: should not map
+                throw "The encoding '$_' is not supported."
+            }
+            'String' {
+                # 'String' is described by Microsoft as "Unicode encoding", which is how they describe 'Unicode'.
+                return [System.Text.Encoding]::Unicode
+            }
+            'Unicode' {
+                return [System.Text.Encoding]::Unicode
+            }
+            'Byte' {
+                # Byte: Seems to be a special value to return a byte array instead of a string.  Not sure the right course of action here.
+                throw "The encoding '$_' is not supported."
+            }
+            'BigEndianUnicode' {
+                return [System.Text.Encoding]::BigEndianUnicode
+            }
+            'UTF8' {
+                return [System.Text.Encoding]::UTF8
+            }
+            'UTF7' {
+                return [System.Text.Encoding]::UTF7
+            }
+            'UTF32' {
+                return [System.Text.Encoding]::UTF32
+            }
+            'UTF16' {
+                # NOTE: While "UTF16" isn't actually in the FileSystemCmdletProviderEncoding enum, it *seems* like it should work, so it is also included here.
+                return [System.Text.Encoding]::Unicode
+            }
+            'Ascii' {
+                return [System.Text.Encoding]::Ascii
+            }
+            'Default' {
+                return [System.Text.Encoding]::Default
+            }
+            'Oem' {
+                # @see https://stackoverflow.com/a/14583739/17152
+                return [System.Text.Encoding]::GetEncoding($Host.CurrentCulture.TextInfo.OEMCodePage)
+            }
+            'BigEndianUTF32' {
+                return $allEncodingMap['UTF32-BE']
+            }
+        }
+
+        # Search by pattern (case-insensitive)
+        $name = $_ # because $_ will be overwritten
+        if ($result = $allEncodingMap.Keys | Where-Object { $_ -ilike $name } | Select-Object -Unique) {
+            return $allEncodingMap[$result]
+        }
+
+        # No such luck
+        Write-Error "The encoding '$name' does not match any available encoding"
+
+    } | Select-Object -Unique
+}
 
 # rewrite format.ps1xml to dispaly different encodings by default
 function updateFormatting($displayEncodings) {
